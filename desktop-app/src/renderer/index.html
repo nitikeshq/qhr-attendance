@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';">
+  <title>QHR Desktop</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="titlebar">
+    <div class="titlebar-drag">
+      <span class="app-title">QHR Desktop</span>
+    </div>
+    <div class="titlebar-controls">
+      <button id="minimize-btn" class="control-btn">−</button>
+      <button id="close-btn" class="control-btn close">×</button>
+    </div>
+  </div>
+
+  <div id="app">
+    <!-- Consent Modal -->
+    <div id="consent-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <h2>Activity Monitoring Notice</h2>
+        <p class="consent-text">
+          By continuing, you agree that your desktop activity will be monitored during working hours. This includes:
+        </p>
+        <ul class="consent-list">
+          <li>🖱️ Mouse and keyboard activity (not content)</li>
+          <li>📊 Active application tracking</li>
+          <li>⏱️ Time spent active vs idle</li>
+          <li>📍 Location verification (office/WFH)</li>
+        </ul>
+        <p class="consent-note">
+          <strong>Note:</strong> Monitoring is only active during your designated work hours and when you are within office premises or during approved WFH time.
+        </p>
+        <div class="consent-actions">
+          <button id="consent-decline" class="btn-secondary">Decline</button>
+          <button id="consent-accept" class="btn-primary">I Understand & Accept</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen">
+      <div class="logo">
+        <div class="logo-icon">QHR</div>
+        <h1>Activity Tracker</h1>
+      </div>
+      
+      <form id="login-form">
+        <div class="form-group">
+          <label for="api-url">Server URL</label>
+          <input type="url" id="api-url" placeholder="https://hr.yourcompany.com/api/v1" required>
+        </div>
+        <div class="form-group">
+          <label for="company-code">Company Code</label>
+          <input type="text" id="company-code" placeholder="COMPANY" required>
+        </div>
+        <div class="form-group">
+          <label for="employee-id">Employee ID</label>
+          <input type="text" id="employee-id" placeholder="EMP001" required>
+        </div>
+        <div class="form-group">
+          <label for="passcode">Passcode</label>
+          <input type="password" id="passcode" placeholder="••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Login</button>
+        <p id="login-error" class="error"></p>
+      </form>
+    </div>
+
+    <!-- Dashboard Screen -->
+    <div id="dashboard-screen" class="screen hidden">
+      <div class="user-info">
+        <div class="avatar" id="user-avatar">U</div>
+        <div class="user-details">
+          <h2 id="user-name">User Name</h2>
+          <p id="user-role">Employee</p>
+        </div>
+        <div class="status-indicator active" id="status-indicator"></div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon active-icon">⏱</div>
+          <div class="stat-value" id="active-time">0h 0m</div>
+          <div class="stat-label">Active Time</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon idle-icon">💤</div>
+          <div class="stat-value" id="idle-time">0h 0m</div>
+          <div class="stat-label">Idle Time</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon score-icon">📊</div>
+          <div class="stat-value" id="productivity-score">0%</div>
+          <div class="stat-label">Productivity</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon session-icon">🕐</div>
+          <div class="stat-value" id="session-time">0h 0m</div>
+          <div class="stat-label">Session</div>
+        </div>
+      </div>
+
+      <div class="activity-section">
+        <h3>Activity Details</h3>
+        <div class="activity-items">
+          <div class="activity-item">
+            <span class="activity-label">Mouse Movements</span>
+            <span class="activity-value" id="mouse-count">0</span>
+          </div>
+          <div class="activity-item">
+            <span class="activity-label">Keystrokes</span>
+            <span class="activity-value" id="keystroke-count">0</span>
+          </div>
+          <div class="activity-item">
+            <span class="activity-label">Clicks</span>
+            <span class="activity-value" id="click-count">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="current-status">
+        <div class="status-badge" id="current-status-badge">
+          <span class="pulse"></span>
+          <span id="status-text">Tracking Active</span>
+        </div>
+      </div>
+
+      <button id="logout-btn" class="btn btn-secondary">Logout</button>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+    <script>
+      // Consent modal styling
+      const style = document.createElement('style');
+      style.textContent = `
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal.hidden { display: none; }
+        .modal-content { background: #fff; border-radius: 16px; padding: 32px; max-width: 440px; text-align: center; }
+        .modal-icon { margin-bottom: 16px; }
+        .modal-content h2 { color: #0f172a; font-size: 20px; margin-bottom: 12px; }
+        .consent-text { color: #64748b; font-size: 14px; margin-bottom: 16px; }
+        .consent-list { text-align: left; padding-left: 20px; margin-bottom: 16px; }
+        .consent-list li { color: #334155; font-size: 13px; margin-bottom: 8px; list-style: none; }
+        .consent-note { background: #fef3c7; border-radius: 8px; padding: 12px; font-size: 12px; color: #92400e; margin-bottom: 20px; }
+        .consent-actions { display: flex; gap: 12px; justify-content: center; }
+        .btn-secondary { padding: 10px 20px; border: 1px solid #e2e8f0; background: #fff; border-radius: 8px; cursor: pointer; font-size: 14px; color: #64748b; }
+        .btn-primary { padding: 10px 24px; background: #6366f1; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
+        .btn-primary:hover { background: #4f46e5; }
+      `;
+      document.head.appendChild(style);
+    </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+directories:
+  output: dist
+  buildResources: build
+appId: com.qhr.desktop
+productName: QHR Desktop
+copyright: Copyright © 2024
+files:
+  - filter:
+      - src/**/*
+      - assets/**/*
+      - node_modules/**/*
+      - package.json
+mac:
+  category: public.app-category.productivity
+  icon: assets/icon.icns
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  hardenedRuntime: true
+  gatekeeperAssess: false
+win:
+  icon: assets/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: assets/icon.ico
+  uninstallerIcon: assets/icon.ico
+  installerHeaderIcon: assets/icon.ico
+linux:
+  icon: assets/icon.png
+  target:
+    - AppImage
+    - deb
+  category: Office
+electronVersion: 28.3.3

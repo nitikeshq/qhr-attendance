@@ -1,0 +1,73 @@
+{
+  "name": "qhr-desktop",
+  "version": "1.0.0",
+  "description": "QHR Attendance Desktop Activity Tracker",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "NODE_ENV=development electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "pack": "electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.qhr.desktop",
+    "productName": "QHR Desktop",
+    "copyright": "Copyright © 2024",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Office"
+    }
+  },
+  "dependencies": {
+    "active-win": "^8.1.0",
+    "auto-launch": "^5.0.6",
+    "electron-store": "^8.1.0",
+    "electron-updater": "^6.1.7",
+    "ioredis": "^5.3.2",
+    "node-fetch": "^2.7.0",
+    "uiohook-napi": "^1.5.4"
+  },
+  "devDependencies": {
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1"
+  },
+  "author": "QHR Team",
+  "license": "MIT"
+}
