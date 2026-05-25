@@ -29,6 +29,26 @@ function getDeviceInfo() {
   };
 }
 
+async function setAutoStart(enabled) {
+  try {
+    if (enabled) {
+      await autoLauncher.enable();
+    } else {
+      await autoLauncher.disable();
+    }
+    store.set('autoStart', enabled);
+    return true;
+  } catch (error) {
+    console.error('Failed to update auto-start:', error.message);
+    store.set('autoStartError', {
+      enabled,
+      message: error.message,
+      timestamp: new Date().toISOString(),
+    });
+    return false;
+  }
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 400,
@@ -117,12 +137,11 @@ function createTray() {
       label: 'Start with System',
       type: 'checkbox',
       checked: store.get('autoStart', true),
-      click: (item) => {
-        store.set('autoStart', item.checked);
-        if (item.checked) {
-          autoLauncher.enable();
-        } else {
-          autoLauncher.disable();
+      click: async (item) => {
+        const enabled = await setAutoStart(item.checked);
+        if (!enabled) {
+          item.checked = !item.checked;
+          tray.setContextMenu(contextMenu);
         }
       },
     },
@@ -310,9 +329,7 @@ app.whenReady().then(async () => {
   
   // Check for auto-start preference
   const autoStart = store.get('autoStart', true);
-  if (autoStart) {
-    autoLauncher.enable();
-  }
+  await setAutoStart(autoStart);
   
   // Initialize services if already logged in
   await initializeServices();
