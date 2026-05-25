@@ -1,6 +1,9 @@
 const fetch = require('node-fetch');
 
-const DEFAULT_BASE_URL = 'http://localhost:5001/api/v1';
+const DEVELOPMENT_BASE_URL = 'http://localhost:3000/api/v1';
+const DEFAULT_BASE_URL = process.env.QHR_API_URL || (
+  process.env.NODE_ENV === 'development' ? DEVELOPMENT_BASE_URL : ''
+);
 
 class ApiService {
   constructor(baseUrl, token = null, options = {}) {
@@ -14,11 +17,11 @@ class ApiService {
     let trimmedUrl = String(baseUrl || DEFAULT_BASE_URL).trim().replace(/\/+$/, '');
 
     if (!trimmedUrl) {
-      return DEFAULT_BASE_URL;
+      throw new Error('Server URL is required');
     }
 
     if (!/^[a-z][a-z\d+.-]*:\/\//i.test(trimmedUrl)) {
-      trimmedUrl = `http://${trimmedUrl}`;
+      trimmedUrl = `https://${trimmedUrl}`;
     }
 
     let parsedUrl;
@@ -32,12 +35,20 @@ class ApiService {
       throw new Error('Server URL must use HTTP or HTTPS');
     }
 
+    if (parsedUrl.protocol === 'http:' && !ApiService.isLocalHttpHost(parsedUrl.hostname)) {
+      throw new Error('Server URL must use HTTPS outside local development');
+    }
+
     if (/\/api(\/v\d+)?$/i.test(parsedUrl.pathname)) {
       return parsedUrl.toString().replace(/\/+$/, '');
     }
 
     parsedUrl.pathname = `${parsedUrl.pathname.replace(/\/+$/, '')}/api/v1`;
     return parsedUrl.toString().replace(/\/+$/, '');
+  }
+
+  static isLocalHttpHost(hostname) {
+    return ['localhost', '127.0.0.1', '::1'].includes(hostname);
   }
 
   setToken(token) {
