@@ -194,6 +194,7 @@ class ActivityTracker {
     this.summary.totalClicks += this.clicks;
     
     const snapshot = {
+      snapshotId: this.generateSnapshotId(),
       timestamp: new Date().toISOString(),
       isActive,
       mouseMovements: this.mouseMovements,
@@ -215,14 +216,17 @@ class ActivityTracker {
     this.clicks = 0;
     this.scrollEvents = 0;
     
+    let snapshotRecorded = false;
     try {
       await this.apiService.recordActivity({ snapshot });
+      snapshotRecorded = true;
       await this.apiService.updateAppUsage(this.getTopApps(), this.getCategoryBreakdown());
       await this.flushOfflineSnapshots();
     } catch (e) {
       console.error('Error sending snapshot:', e.message);
-      // Store offline for later sync
-      this.storeOfflineSnapshot(snapshot);
+      if (!snapshotRecorded) {
+        this.storeOfflineSnapshot(snapshot);
+      }
     }
   }
 
@@ -377,10 +381,27 @@ class ActivityTracker {
     const os = require('os');
     return {
       hostname: os.hostname(),
-      platform: process.platform === 'darwin' ? 'macos' : process.platform,
+      platform: this.getPlatformName(process.platform),
       osVersion: os.release(),
       deviceId: this.store.get('deviceId') || this.generateDeviceId(),
     };
+  }
+
+  getPlatformName(platform = process.platform) {
+    const platforms = {
+      darwin: 'macos',
+      win32: 'windows',
+      linux: 'linux',
+    };
+    return platforms[platform] || platform;
+  }
+
+  generateSnapshotId() {
+    const crypto = require('crypto');
+    const deviceId = this.store.get('deviceId') || this.generateDeviceId();
+    return crypto.randomUUID
+      ? crypto.randomUUID()
+      : crypto.createHash('sha256').update(`${deviceId}-${Date.now()}-${Math.random()}`).digest('hex');
   }
 
   generateDeviceId() {
