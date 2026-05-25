@@ -171,6 +171,10 @@ async function updateActivity() {
   document.getElementById('mouse-count').textContent = formatNumber(summary.totalMouseMovements);
   document.getElementById('keystroke-count').textContent = formatNumber(summary.totalKeystrokes);
   document.getElementById('click-count').textContent = formatNumber(summary.totalClicks);
+  document.getElementById('ai-work-time').textContent = formatTime(summary.aiWorkMinutes);
+  document.getElementById('normal-work-time').textContent = formatTime(summary.normalWorkMinutes);
+  document.getElementById('current-app').textContent = summary.currentWindow?.app || '-';
+  renderAppUsage(summary.topApps || []);
   
   // Update status
   const statusBadge = document.getElementById('current-status-badge');
@@ -188,6 +192,47 @@ async function updateActivity() {
     statusIndicator.classList.remove('active');
     statusIndicator.classList.add('idle');
   }
+}
+
+function renderAppUsage(topApps) {
+  const list = document.getElementById('app-usage-list');
+  if (!list) return;
+
+  if (!topApps.length) {
+    list.innerHTML = '<div class="empty-usage">No app usage yet</div>';
+    return;
+  }
+
+  list.innerHTML = topApps.map((app) => `
+    <div class="usage-row">
+      <div class="usage-main">
+        <span class="usage-name">${escapeHtml(app.name)}</span>
+        <span class="usage-category">${formatCategory(app.category)}</span>
+      </div>
+      <div class="usage-meta">
+        <span>${formatTime(app.duration)}</span>
+        <span>${app.percentage || 0}%</span>
+      </div>
+      <div class="usage-bar"><span style="width: ${Math.min(app.percentage || 0, 100)}%"></span></div>
+    </div>
+  `).join('');
+}
+
+function formatCategory(category) {
+  if (category === 'ai_work') return 'AI';
+  if (category === 'productive') return 'Work';
+  if (category === 'distracting') return 'Distracting';
+  if (category === 'neutral') return 'Neutral';
+  return 'Untracked';
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function formatTime(minutes) {

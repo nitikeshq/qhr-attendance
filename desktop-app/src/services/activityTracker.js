@@ -36,6 +36,8 @@ class ActivityTracker {
     this.windowTracker = null;
     this.activeWindow = null;
     this.isFlushingOfflineSnapshots = false;
+    this.appUsage = {};
+    this.categoryUsage = {};
   }
 
   async start() {
@@ -163,6 +165,8 @@ class ActivityTracker {
             app: win.owner?.name || 'Unknown',
             url: win.url || null,
           };
+          this.activeWindow.category = this.classifyWindow(this.activeWindow).category;
+          this.activeWindow.isAiTool = this.activeWindow.category === 'ai_work';
         }
       } catch (e) {
         // Ignore errors
@@ -197,8 +201,13 @@ class ActivityTracker {
       clicks: this.clicks,
       scrollEvents: this.scrollEvents,
       activeWindow: this.activeWindow,
+      workCategory: this.activeWindow?.category || 'untracked',
       idleTime: Math.floor(idleTime / 1000),
     };
+
+    if (isActive) {
+      this.recordAppUsage(snapshot.activeWindow, this.snapshotInterval / 60000);
+    }
     
     // Reset counters
     this.mouseMovements = 0;
@@ -208,6 +217,7 @@ class ActivityTracker {
     
     try {
       await this.apiService.recordActivity({ snapshot });
+      await this.apiService.updateAppUsage(this.getTopApps(), this.getCategoryBreakdown());
       await this.flushOfflineSnapshots();
     } catch (e) {
       console.error('Error sending snapshot:', e.message);
@@ -275,7 +285,92 @@ class ActivityTracker {
       productivityScore: this.summary.totalSystemTime > 0
         ? Math.round((this.summary.totalActiveTime / this.summary.totalSystemTime) * 100)
         : 0,
+      currentWindow: this.activeWindow,
+      topApps: this.getTopApps(),
+      categoryBreakdown: this.getCategoryBreakdown(),
+      aiWorkMinutes: this.categoryUsage.ai_work || 0,
+      normalWorkMinutes: Math.max((this.summary.totalActiveTime || 0) - (this.categoryUsage.ai_work || 0), 0),
     };
+  }
+
+  classifyWindow(activeWindow) {
+    const app = String(activeWindow?.app || '').toLowerCase();
+    const title = String(activeWindow?.title || '').toLowerCase();
+    const url = String(activeWindow?.url || '').toLowerCase();
+    const text = `${app} ${title} ${url}`;
+
+    const aiPatterns = [
+      'chatgpt', 'openai', 'claude', 'anthropic', 'gemini', 'bard',
+      'copilot', 'cursor', 'perplexity', 'poe.com', 'midjourney',
+      'windsurf', 'bolt.new', 'v0.dev', 'lovable',
+    ];
+    if (aiPatterns.some(pattern => text.includes(pattern))) {
+      return { category: 'ai_work' };
+    }
+
+    const productivePatterns = [
+      'code', 'visual studio', 'xcode', 'terminal', 'iterm', 'github',
+      'gitlab', 'jira', 'linear', 'notion', 'slack', 'figma', 'postman',
+      'chrome', 'safari', 'firefox', 'edge', 'excel', 'word', 'sheets',
+    ];
+    if (productivePatterns.some(pattern => text.includes(pattern))) {
+      return { category: 'productive' };
+    }
+
+    const distractingPatterns = [
+      'youtube', 'netflix', 'instagram', 'facebook', 'twitter', 'x.com',
+      'reddit', 'spotify', 'prime video', 'hotstar',
+    ];
+    if (distractingPatterns.some(pattern => text.includes(pattern))) {
+      return { category: 'distracting' };
+    }
+
+    return { category: activeWindow?.app ? 'neutral' : 'untracked' };
+  }
+
+  recordAppUsage(activeWindow, durationMinutes) {
+    const classification = this.classifyWindow(activeWindow);
+    const category = classification.category;
+    const appName = activeWindow?.app || 'Unknown';
+
+    this.categoryUsage[category] = (this.categoryUsage[category] || 0) + durationMinutes;
+    this.appUsage[appName] = this.appUsage[appName] || {
+      name: appName,
+      duration: 0,
+      category,
+      windowTitles: {},
+    };
+    this.appUsage[appName].duration += durationMinutes;
+    this.appUsage[appName].category = category;
+
+    const title = activeWindow?.title;
+    if (title) {
+      this.appUsage[appName].windowTitles[title] = (this.appUsage[appName].windowTitles[title] || 0) + durationMinutes;
+    }
+  }
+
+  getTopApps() {
+    const total = Object.values(this.appUsage).reduce((sum, item) => sum + item.duration, 0);
+    return Object.values(this.appUsage)
+      .sort((a, b) => b.duration - a.duration)
+      .slice(0, 8)
+      .map(item => ({
+        name: item.name,
+        duration: Math.round(item.duration * 10) / 10,
+        percentage: total > 0 ? Math.round((item.duration / total) * 100) : 0,
+        category: item.category,
+      }));
+  }
+
+  getCategoryBreakdown() {
+    const total = Object.values(this.categoryUsage).reduce((sum, duration) => sum + duration, 0);
+    return Object.entries(this.categoryUsage)
+      .sort((a, b) => b[1] - a[1])
+      .map(([category, duration]) => ({
+        category,
+        duration: Math.round(duration * 10) / 10,
+        percentage: total > 0 ? Math.round((duration / total) * 100) : 0,
+      }));
   }
 
   getDeviceInfo() {

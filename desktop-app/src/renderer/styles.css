@@ -376,6 +376,81 @@ body {
   color: var(--primary);
 }
 
+.truncate-value {
+  max-width: 150px;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.usage-row {
+  display: grid;
+  gap: 7px;
+  padding: 11px 12px;
+  background: var(--bg-alt);
+  border-radius: 10px;
+  box-shadow: var(--neu-shadow-inset);
+}
+
+.usage-main,
+.usage-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.usage-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-category {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.usage-meta {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.usage-bar {
+  height: 6px;
+  overflow: hidden;
+  background: var(--shadow-dark);
+  border-radius: 999px;
+}
+
+.usage-bar span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  border-radius: inherit;
+}
+
+.empty-usage {
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
 /* Neumorphic Status Badge */
 .current-status {
   text-align: center;

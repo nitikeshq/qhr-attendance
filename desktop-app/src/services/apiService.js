@@ -119,6 +119,13 @@ class ApiService {
     });
   }
 
+  async updateAppUsage(topApps, topCategories) {
+    return this.request('/desktop-activity/apps', {
+      method: 'PUT',
+      body: JSON.stringify({ topApps, topCategories }),
+    });
+  }
+
   async sendHeartbeat() {
     return this.request('/desktop-activity/heartbeat', {
       method: 'POST',
