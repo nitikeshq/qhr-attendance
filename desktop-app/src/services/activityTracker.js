@@ -1,4 +1,4 @@
-const { uIOhook, UiohookKey } = require('uiohook-napi');
+const { uIOhook } = require('uiohook-napi');
 const activeWin = require('active-win');
 
 class ActivityTracker {
@@ -33,7 +33,9 @@ class ActivityTracker {
     };
     
     this.snapshotTimer = null;
+    this.windowTracker = null;
     this.activeWindow = null;
+    this.isFlushingOfflineSnapshots = false;
   }
 
   async start() {
@@ -52,11 +54,14 @@ class ActivityTracker {
     // Track active window periodically
     this.startWindowTracker();
     
-    // Notify backend of session start
-    await this.apiService.recordActivity({
-      sessionStart: this.sessionStartTime.toISOString(),
-      deviceInfo: this.getDeviceInfo(),
-    });
+    try {
+      await this.apiService.recordActivity({
+        sessionStart: this.sessionStartTime.toISOString(),
+        deviceInfo: this.getDeviceInfo(),
+      });
+    } catch (e) {
+      console.error('Error recording session start:', e.message);
+    }
     
     console.log('Activity tracking started');
   }
@@ -64,11 +69,10 @@ class ActivityTracker {
   async stop() {
     if (!this.isTracking) return;
     
-    this.isTracking = false;
-    
     // Stop hooks
     try {
       uIOhook.stop();
+      uIOhook.removeAllListeners();
     } catch (e) {
       console.error('Error stopping hooks:', e);
     }
@@ -79,13 +83,21 @@ class ActivityTracker {
     }
     if (this.windowTracker) {
       clearInterval(this.windowTracker);
+      this.windowTracker = null;
     }
     
     // Send final snapshot and session end
-    await this.sendSnapshot();
-    await this.apiService.recordActivity({
-      sessionEnd: new Date().toISOString(),
-    });
+    await this.sendSnapshot({ force: true });
+
+    try {
+      await this.apiService.recordActivity({
+        sessionEnd: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.error('Error recording session end:', e.message);
+    }
+
+    this.isTracking = false;
     
     console.log('Activity tracking stopped');
   }
@@ -124,12 +136,24 @@ class ActivityTracker {
   }
 
   startSnapshotTimer() {
+    if (this.snapshotTimer) {
+      clearInterval(this.snapshotTimer);
+    }
+
     this.snapshotTimer = setInterval(async () => {
-      await this.sendSnapshot();
+      try {
+        await this.sendSnapshot();
+      } catch (e) {
+        console.error('Snapshot timer failed:', e.message);
+      }
     }, this.snapshotInterval);
   }
 
   startWindowTracker() {
+    if (this.windowTracker) {
+      clearInterval(this.windowTracker);
+    }
+
     this.windowTracker = setInterval(async () => {
       try {
         const win = await activeWin();
@@ -146,8 +170,8 @@ class ActivityTracker {
     }, 5000);
   }
 
-  async sendSnapshot() {
-    if (!this.isTracking || this.status === 'dnd') return;
+  async sendSnapshot(options = {}) {
+    if ((!this.isTracking && !options.force) || this.status === 'dnd') return;
     
     const now = Date.now();
     const idleTime = now - this.lastActivityTime;
@@ -184,8 +208,9 @@ class ActivityTracker {
     
     try {
       await this.apiService.recordActivity({ snapshot });
+      await this.flushOfflineSnapshots();
     } catch (e) {
-      console.error('Error sending snapshot:', e);
+      console.error('Error sending snapshot:', e.message);
       // Store offline for later sync
       this.storeOfflineSnapshot(snapshot);
     }
@@ -199,6 +224,34 @@ class ActivityTracker {
       offlineSnapshots.shift();
     }
     this.store.set('offlineSnapshots', offlineSnapshots);
+  }
+
+  async flushOfflineSnapshots() {
+    if (this.isFlushingOfflineSnapshots) return;
+
+    const offlineSnapshots = this.store.get('offlineSnapshots', []);
+    if (!offlineSnapshots.length) return;
+
+    this.isFlushingOfflineSnapshots = true;
+    const remainingSnapshots = [...offlineSnapshots];
+    const batch = remainingSnapshots.splice(0, 25);
+
+    try {
+      for (let index = 0; index < batch.length; index++) {
+        try {
+          await this.apiService.recordActivity({ snapshot: batch[index] });
+        } catch (e) {
+          this.store.set('offlineSnapshots', [...batch.slice(index), ...remainingSnapshots]);
+          throw e;
+        }
+      }
+
+      this.store.set('offlineSnapshots', remainingSnapshots);
+    } catch (e) {
+      console.error('Error flushing offline snapshots:', e.message);
+    } finally {
+      this.isFlushingOfflineSnapshots = false;
+    }
   }
 
   setStatus(status) {

@@ -112,6 +112,10 @@ loginForm.addEventListener('submit', async (e) => {
     });
     
     if (result.success) {
+      if (result.apiUrl) {
+        document.getElementById('api-url').value = result.apiUrl;
+      }
+
       // Check if consent was previously given
       const consent = await electronAPI.getStore('monitoringConsent');
       if (consent?.accepted) {
@@ -145,12 +149,16 @@ logoutBtn.addEventListener('click', async () => {
 let updateInterval;
 
 function startActivityUpdates() {
+  if (updateInterval) {
+    clearInterval(updateInterval);
+  }
+
   updateActivity();
   updateInterval = setInterval(updateActivity, 5000);
 }
 
 async function updateActivity() {
-  const summary = await electronAPI.getActivitySummary();
+  const summary = await electronAPI.getActivitySummary().catch(() => null);
   if (!summary) return;
   
   // Update stats

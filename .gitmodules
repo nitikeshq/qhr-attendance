@@ -1,0 +1,3 @@
+[submodule "attendance-mobile"]
+	path = attendance-mobile
+	url = https://github.com/nitikeshq/attendance-mobile.git

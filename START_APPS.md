@@ -4,7 +4,8 @@
 
 ### 1. Start Backend API (Terminal 1)
 ```bash
-cd /Users/nitikeshd/Desktop/attendance/attendance-mobile/Backend
+cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile/Backend
+nvm use 24
 npm run dev
 ```
 **Port:** 5001  
@@ -14,7 +15,8 @@ npm run dev
 
 ### 2. Start Admin Panel (Terminal 2)
 ```bash
-cd /Users/nitikeshd/Desktop/attendance/attendance-mobile/Backend/admin-panel
+cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile/Backend/admin-panel
+nvm use 24
 npm run dev
 ```
 **Port:** 3001  
@@ -24,7 +26,8 @@ npm run dev
 
 ### 3. Start Landing Page (Terminal 3)
 ```bash
-cd /Users/nitikeshd/Desktop/attendance/attendance-mobile/Backend/landing-page
+cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile/Backend/landing-page
+nvm use 24
 npm run dev
 ```
 **Port:** 3000  
@@ -34,7 +37,8 @@ npm run dev
 
 ### 4. Start Mobile App (Terminal 4)
 ```bash
-cd /Users/nitikeshd/Desktop/attendance/attendance-mobile
+cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile
+nvm use 24
 npx expo start
 ```
 
@@ -82,7 +86,8 @@ pkill -f expo
 
 **Option 2: Use Development Build**
 ```bash
-cd /Users/nitikeshd/Desktop/attendance/attendance-mobile
+cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile
+nvm use 24
 npx expo run:android
 ```
 
@@ -97,7 +102,8 @@ npx expo run:android
 
 Update packages to compatible versions:
 ```bash
-cd /Users/nitikeshd/Desktop/attendance/attendance-mobile
+cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile
+nvm use 24
 npx expo install expo@~54.0.33 expo-router@~6.0.23 @react-native-community/datetimepicker@8.4.4
 ```
 
@@ -105,17 +111,13 @@ npx expo install expo@~54.0.33 expo-router@~6.0.23 @react-native-community/datet
 
 ## Database Setup
 
-### Run Migrations
+### Database
+
+The production backend is MongoDB-backed through `attendance-mobile/Backend`. PostgreSQL migration snippets in older docs are legacy and should not be used for the current one-backend architecture.
+
 ```bash
-cd /Users/nitikeshd/Desktop/attendance/attendance-mobile/Backend
-
-# Connect to PostgreSQL
-psql -U qhr_admin -d qhr_attendance
-
-# Run migrations
-\i src/migrations/001_payroll_tables.sql
-\i src/migrations/002_exit_formalities_tables.sql
-\i src/migrations/003_demo_requests_subscriptions.sql
+cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile/Backend
+npm run seed
 ```
 
 ---
@@ -186,3 +188,7 @@ NEXT_PUBLIC_API_URL=http://localhost:5001
 - **Documentation:** Check IMPLEMENTATION_SUMMARY.md
 - **Design Analysis:** Check ADMIN_PANEL_DESIGN_ANALYSIS.md
 - **Deployment:** Check Backend/DEPLOYMENT_GUIDE.md
+
+## Current Production Readiness Note
+
+Backend validation is currently the cleanest surface: 42 Jest suites / 396 tests pass, coverage is 92.60% statements / 93.05% lines, and backend lint is clean. Mobile, remaining web, and desktop checks still need enough disk headroom for dependency/build verification.

@@ -144,7 +144,7 @@ QHR Attendance is a complete HRMS solution designed for Small and Medium Enterpr
 ### Backend
 | Component | Technology |
 |-----------|------------|
-| Runtime | Node.js 20+ |
+| Runtime | Node.js 24+ |
 | Framework | Express.js 4.x |
 | Database | MongoDB 6+ with Mongoose |
 | Real-time | Socket.IO |
@@ -375,7 +375,7 @@ attendance/
 ## Backend Setup
 
 ### Prerequisites
-- Node.js 20+ (use nvm: `nvm install 20 && nvm use 20`)
+- Node.js 24+ (use nvm: `nvm install 24 && nvm use 24`)
 - MongoDB 6+ (local or MongoDB Atlas)
 - Redis (optional, for caching)
 
@@ -454,7 +454,7 @@ npm run lint   # Run ESLint
 ## Mobile App Setup
 
 ### Prerequisites
-- Node.js 20+
+- Node.js 24+
 - npm or yarn
 - Expo CLI (`npm install -g expo-cli`)
 - Android Studio (for Android emulator) or Xcode (for iOS simulator)

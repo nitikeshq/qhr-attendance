@@ -21,7 +21,7 @@ This guide covers setting up the entire QHR Attendance ecosystem including Backe
 
 | Component | Requirement |
 |-----------|-------------|
-| Node.js | v20.x or higher |
+| Node.js | v24.x or higher |
 | npm | v10.x or higher |
 | MongoDB | v6.x or higher |
 | Redis | v7.x (optional) |
@@ -38,11 +38,11 @@ This guide covers setting up the entire QHR Attendance ecosystem including Backe
 ```bash
 # Using nvm (recommended)
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-nvm install 20
-nvm use 20
+nvm install 24
+nvm use 24
 
 # Verify installation
-node --version  # Should show v20.x.x
+node --version  # Should show v24.x.x
 npm --version   # Should show v10.x.x
 ```
 
@@ -293,7 +293,7 @@ npm run build:mac
 sudo apt update && sudo apt upgrade -y
 
 # 2. Install Node.js
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt install -y nodejs
 
 # 3. Install PM2

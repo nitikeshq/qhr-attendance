@@ -42,7 +42,7 @@ npm run build:linux
 ## Configuration
 
 On first run, enter:
-- **Server URL**: Your QHR backend API URL (e.g., `https://hr.yourcompany.com/api/v1`)
+- **Server URL**: Your QHR backend API URL (e.g., `https://hr.yourcompany.com/api/v1`). If you enter only the backend origin, the app appends `/api/v1` automatically.
 - **Company Code**: Your company code
 - **Employee ID**: Your employee ID
 - **Passcode**: Your login passcode
@@ -59,7 +59,7 @@ Data is sent to your company's QHR server and is visible to HR/Admin users.
 ## Requirements
 
 - Windows 10+ or macOS 10.15+
-- Node.js 18+ (for development)
+- Node.js 24+ (for development)
 - 100MB disk space
 - Internet connection
 

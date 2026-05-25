@@ -58,7 +58,7 @@ QHR Attendance Management System is a comprehensive HRMS solution designed for S
 ### Technology Stack
 
 #### Backend
-- **Runtime**: Node.js 20+
+- **Runtime**: Node.js 24+
 - **Framework**: Express.js 4.x
 - **Database**: MongoDB 6+ with Mongoose ODM
 - **Real-time**: Socket.IO

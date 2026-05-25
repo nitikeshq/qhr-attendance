@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, Notification } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
 const AutoLaunch = require('auto-launch');
@@ -11,6 +11,8 @@ let tray = null;
 let activityTracker = null;
 let apiService = null;
 let isQuitting = false;
+let heartbeatTimer = null;
+let shutdownInProgress = false;
 
 const autoLauncher = new AutoLaunch({
   name: 'QHR Desktop',
@@ -148,20 +150,63 @@ function setStatus(status) {
 
 async function initializeServices() {
   const session = store.get('session');
+  const consent = store.get('monitoringConsent');
   
-  if (session?.token) {
-    apiService = new ApiService(store.get('apiUrl'), session.token);
-    activityTracker = new ActivityTracker(apiService, store);
-    
-    await activityTracker.start();
-    
-    // Send heartbeat every minute
-    setInterval(async () => {
-      if (apiService) {
-        await apiService.sendHeartbeat();
-      }
-    }, 60000);
+  if (!session?.token || !consent?.accepted) {
+    await stopServices();
+    return;
   }
+
+  if (activityTracker?.isTracking) {
+    return;
+  }
+
+  apiService = createApiService(session);
+  activityTracker = new ActivityTracker(apiService, store);
+  activityTracker.setStatus(store.get('status', 'active'));
+
+  await activityTracker.start();
+
+  heartbeatTimer = setInterval(async () => {
+    if (apiService) {
+      try {
+        await apiService.sendHeartbeat();
+      } catch (error) {
+        console.error('Heartbeat failed:', error.message);
+      }
+    }
+  }, 60000);
+}
+
+async function stopServices() {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+
+  if (activityTracker) {
+    try {
+      await activityTracker.stop();
+    } catch (error) {
+      console.error('Failed to stop activity tracker:', error.message);
+    }
+  }
+
+  activityTracker = null;
+  apiService = null;
+}
+
+function createApiService(session) {
+  return new ApiService(store.get('apiUrl'), session.token, {
+    refreshToken: session.refreshToken,
+    onTokenRefresh: ({ accessToken, refreshToken }) => {
+      store.set('session', {
+        ...store.get('session'),
+        token: accessToken,
+        refreshToken,
+      });
+    },
+  });
 }
 
 // IPC Handlers
@@ -169,8 +214,11 @@ ipcMain.handle('get-store', (event, key) => {
   return store.get(key);
 });
 
-ipcMain.handle('set-store', (event, key, value) => {
+ipcMain.handle('set-store', async (event, key, value) => {
   store.set(key, value);
+  if (key === 'monitoringConsent') {
+    await initializeServices();
+  }
   return true;
 });
 
@@ -178,29 +226,28 @@ ipcMain.handle('login', async (event, { apiUrl, companyCode, employeeId, passcod
   try {
     const tempApi = new ApiService(apiUrl);
     const result = await tempApi.login(companyCode, employeeId, passcode);
+    const normalizedApiUrl = tempApi.baseUrl;
     
-    store.set('apiUrl', apiUrl);
+    store.set('apiUrl', normalizedApiUrl);
     store.set('session', {
       token: result.accessToken,
       refreshToken: result.refreshToken,
       employee: result.employee,
     });
+
+    if (store.get('monitoringConsent')?.accepted) {
+      await initializeServices();
+    }
     
-    await initializeServices();
-    
-    return { success: true, employee: result.employee };
+    return { success: true, employee: result.employee, apiUrl: normalizedApiUrl };
   } catch (error) {
     return { success: false, error: error.message };
   }
 });
 
 ipcMain.handle('logout', async () => {
-  if (activityTracker) {
-    await activityTracker.stop();
-  }
+  await stopServices();
   store.delete('session');
-  apiService = null;
-  activityTracker = null;
   return { success: true };
 });
 
@@ -258,10 +305,12 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('before-quit', async () => {
+app.on('before-quit', (event) => {
   isQuitting = true;
-  if (activityTracker) {
-    await activityTracker.stop();
+  if (activityTracker && !shutdownInProgress) {
+    event.preventDefault();
+    shutdownInProgress = true;
+    stopServices().finally(() => app.quit());
   }
 });
 

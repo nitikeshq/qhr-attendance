@@ -1,14 +1,14 @@
 # QHR Attendance System - PM2 Setup Guide
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Make Scripts Executable
 ```bash
-cd /Users/nitikeshd/Desktop/attendance
+cd /Users/nitikeshd/Projects/qhr-attendance
 chmod +x start-pm2.sh stop-pm2.sh
 ```
 
-### 2. Start All Services
+### 2. Start Development Services
 ```bash
 ./start-pm2.sh
 ```
@@ -20,9 +20,22 @@ chmod +x start-pm2.sh stop-pm2.sh
 
 ---
 
-## 📋 What PM2 Does
+## Production PM2
 
-PM2 (Process Manager 2) manages all your Node.js applications in a single instance with:
+Use `ecosystem.production.config.js` for production-like runs. It starts one backend API from `attendance-mobile/Backend`; every web, mobile, desktop, and landing/demo client should target that backend instead of running a second API.
+
+```bash
+cd /Users/nitikeshd/Projects/qhr-attendance
+nvm use 24
+pm2 start ecosystem.production.config.js
+pm2 save
+```
+
+The latest backend readiness baseline is 42 passing Jest suites / 396 passing tests, 92.71% statement coverage, 93.17% line coverage, and clean `npm run lint`. Mobile, remaining web, and desktop PM2/build smoke checks are still blocked by low disk headroom.
+
+## What PM2 Does
+
+PM2 (Process Manager 2) manages Node.js applications in a single instance with:
 
 - ✅ **Automatic restarts** if apps crash
 - ✅ **Zero downtime reloads** 
@@ -33,11 +46,11 @@ PM2 (Process Manager 2) manages all your Node.js applications in a single instan
 
 ---
 
-## 🗂️ File Structure Created
+## File Structure
 
 ```
-/Users/nitikeshd/Desktop/attendance/
-├── ecosystem.config.js     # PM2 configuration file
+/Users/nitikeshd/Projects/qhr-attendance/
+├── ecosystem.production.config.js # Production PM2 configuration
 ├── start-pm2.sh            # Startup script
 ├── stop-pm2.sh             # Stop script
 ├── PM2_GUIDE.md            # This guide
@@ -55,18 +68,19 @@ PM2 (Process Manager 2) manages all your Node.js applications in a single instan
 
 ---
 
-## 🖥️ Services Managed
+## Services Managed
 
 | Service | PM2 Name | Port | Description |
 |---------|----------|------|-------------|
 | Backend API | `qhr-backend` | 5001 | Express.js API server |
 | Admin Panel | `qhr-admin-panel` | 3001 | Next.js admin interface |
 | Landing Page | `qhr-landing-page` | 3000 | Next.js public website |
-| Mobile App | `qhr-mobile-app` | 8082 | Expo development server |
+
+The mobile app and desktop tracker should be built/tested as clients of the same backend. Do not add them to production PM2 as long-running development servers.
 
 ---
 
-## 📊 PM2 Commands
+## PM2 Commands
 
 ### Basic Commands
 ```bash
@@ -98,7 +112,7 @@ pm2 restart qhr-backend
 pm2 logs qhr-admin-panel
 
 # Stop specific service
-pm2 stop qhr-mobile-app
+pm2 stop qhr-backend
 ```
 
 ### Advanced Commands
@@ -121,19 +135,18 @@ pm2 monit
 
 ---
 
-## 🔧 Configuration Details
+## Configuration Details
 
 ### Environment Variables
-The `ecosystem.config.js` includes all necessary environment variables:
+The production ecosystem reads secrets and URLs from the shell environment:
 
 ```javascript
 env: {
-  NODE_ENV: 'development',
-  PORT: 5001,
-  MONGODB_URI: 'mongodb://localhost:27017/attendance',
-  REDIS_URL: 'redis://localhost:6379',
-  JWT_SECRET: 'your-jwt-secret-key',
-  // ... more variables
+  NODE_ENV: 'production',
+  PORT: process.env.PORT || 5001,
+  MONGODB_URI: process.env.MONGODB_URI,
+  JWT_SECRET: process.env.JWT_SECRET,
+  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
 }
 ```
 
@@ -150,14 +163,14 @@ env: {
 
 ---
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
 #### 1. Port Already in Use
 ```bash
-# Kill processes on ports
-lsof -ti:3000,3001,5001,8082 | xargs kill -9
+# Kill processes on ports used by production PM2 services
+lsof -ti:3000,3001,5001 | xargs kill -9
 
 # Then restart
 ./start-pm2.sh
@@ -185,14 +198,19 @@ cd ../landing-page && npm install
 cd ../.. && npm install
 ```
 
-#### 4. Expo Issues
+#### 4. Mobile/Desktop Verification
 ```bash
-# Clear Expo cache
+# Mobile checks need dependency and disk headroom first.
 cd attendance-mobile
-npx expo start --clear
+nvm use 24
+npm ci
+npm run typecheck
 
-# Restart mobile app service
-pm2 restart qhr-mobile-app
+# Desktop checks should verify production API URL, token refresh,
+# offline replay, consent, retention, and disclosure behavior.
+cd ../desktop-app
+npm ci
+npm run build
 ```
 
 ### View Logs for Debugging
@@ -255,8 +273,8 @@ git commit -m "Your changes"
 
 ### Production Deployment
 ```bash
-# Update ecosystem.config.js with production settings
-pm2 start ecosystem.config.js --env production
+# Export production secrets first, then start the one-backend config.
+pm2 start ecosystem.production.config.js
 
 # Save for auto-restart on server reboot
 pm2 save
@@ -265,7 +283,7 @@ pm2 startup
 
 ---
 
-## 📱 Access Your Applications
+## Access Your Applications
 
 After running `./start-pm2.sh`:
 
@@ -274,24 +292,22 @@ After running `./start-pm2.sh`:
 | 🌐 Landing Page | http://localhost:3000 | Public website for demo requests |
 | 🖥️ Admin Panel | http://localhost:3001 | Admin dashboard (login required) |
 | 🔧 Backend API | http://localhost:5001 | REST API for all services |
-| 📱 Mobile App | http://localhost:8082 | Expo web interface |
-| 📲 Mobile App | Scan QR code | Use Expo Go app on mobile |
 
 ---
 
-## 🎯 Benefits of PM2 Setup
+## Benefits of PM2 Setup
 
 1. **Single Command Start**: `./start-pm2.sh` starts everything
 2. **Automatic Recovery**: Services restart if they crash
 3. **Centralized Logs**: All logs in one place with timestamps
 4. **Memory Management**: Auto-restart on memory leaks
 5. **Process Monitoring**: Real-time status and metrics
-6. **Production Ready**: Same config works for production
+6. **Production Ready**: Production config keeps a single backend authority
 7. **Zero Downtime**: Reload without stopping services
 
 ---
 
-## 🆘 Getting Help
+## Getting Help
 
 If you face issues:
 
