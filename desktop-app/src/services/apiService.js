@@ -130,6 +130,13 @@ class ApiService {
     });
   }
 
+  async recordMonitoringConsent(consent) {
+    return this.request('/desktop-activity/consent', {
+      method: 'POST',
+      body: JSON.stringify(consent),
+    });
+  }
+
   async updateAppUsage(topApps, topCategories) {
     return this.request('/desktop-activity/apps', {
       method: 'PUT',

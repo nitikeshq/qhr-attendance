@@ -21,15 +21,22 @@ document.getElementById('close-btn').addEventListener('click', () => {
 let pendingEmployee = null;
 
 document.getElementById('consent-accept')?.addEventListener('click', async () => {
-  await electronAPI.setStore('monitoringConsent', { 
-    accepted: true, 
-    timestamp: new Date().toISOString() 
-  });
-  consentModal.classList.add('hidden');
-  if (pendingEmployee) {
-    showDashboard(pendingEmployee);
-    startActivityUpdates();
-    pendingEmployee = null;
+  try {
+    await electronAPI.setStore('monitoringConsent', { 
+      accepted: true,
+      policyVersion: 'desktop-monitoring-v1',
+      timestamp: new Date().toISOString() 
+    });
+    consentModal.classList.add('hidden');
+    if (pendingEmployee) {
+      showDashboard(pendingEmployee);
+      startActivityUpdates();
+      pendingEmployee = null;
+    }
+  } catch (error) {
+    loginError.textContent = error.message || 'Unable to record monitoring consent';
+    showLogin();
+    consentModal.classList.add('hidden');
   }
 });
 

@@ -19,6 +19,16 @@ const autoLauncher = new AutoLaunch({
   isHidden: true,
 });
 
+function getDeviceInfo() {
+  const os = require('os');
+  return {
+    hostname: os.hostname(),
+    platform: process.platform,
+    osVersion: os.release(),
+    arch: os.arch(),
+  };
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 400,
@@ -215,6 +225,29 @@ ipcMain.handle('get-store', (event, key) => {
 });
 
 ipcMain.handle('set-store', async (event, key, value) => {
+  if (key === 'monitoringConsent') {
+    const session = store.get('session');
+
+    if (value?.accepted && !session?.token) {
+      throw new Error('Login is required before monitoring consent can be recorded');
+    }
+
+    if (session?.token) {
+      const api = createApiService(session);
+      await api.recordMonitoringConsent({
+        accepted: Boolean(value?.accepted),
+        acceptedAt: value?.timestamp || new Date().toISOString(),
+        policyVersion: value?.policyVersion || 'desktop-monitoring-v1',
+        deviceInfo: getDeviceInfo(),
+      });
+      value = {
+        ...value,
+        policyVersion: value?.policyVersion || 'desktop-monitoring-v1',
+        syncedAt: new Date().toISOString(),
+      };
+    }
+  }
+
   store.set(key, value);
   if (key === 'monitoringConsent') {
     await initializeServices();
@@ -259,13 +292,7 @@ ipcMain.handle('get-activity-summary', () => {
 });
 
 ipcMain.handle('get-device-info', () => {
-  const os = require('os');
-  return {
-    hostname: os.hostname(),
-    platform: process.platform,
-    osVersion: os.release(),
-    arch: os.arch(),
-  };
+  return getDeviceInfo();
 });
 
 ipcMain.handle('minimize-window', () => {
