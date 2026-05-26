@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, safeStorage } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
 const AutoLaunch = require('auto-launch');
@@ -18,6 +18,51 @@ const autoLauncher = new AutoLaunch({
   name: 'QHR Desktop',
   isHidden: true,
 });
+
+function canUseSafeStorage() {
+  return Boolean(safeStorage?.isEncryptionAvailable?.());
+}
+
+function setSession(session) {
+  if (canUseSafeStorage()) {
+    const encrypted = safeStorage.encryptString(JSON.stringify(session)).toString('base64');
+    store.set('sessionEncrypted', encrypted);
+    store.delete('session');
+    store.delete('sessionStorageWarning');
+    return;
+  }
+
+  store.set('session', session);
+  store.set('sessionStorageWarning', {
+    message: 'OS secure storage is unavailable; session is stored with reduced protection.',
+    timestamp: new Date().toISOString(),
+  });
+}
+
+function getSession() {
+  const encrypted = store.get('sessionEncrypted');
+  if (encrypted && canUseSafeStorage()) {
+    try {
+      return JSON.parse(safeStorage.decryptString(Buffer.from(encrypted, 'base64')));
+    } catch (error) {
+      console.error('Failed to decrypt stored session:', error.message);
+      store.delete('sessionEncrypted');
+    }
+  }
+
+  const legacySession = store.get('session');
+  if (legacySession?.token) {
+    setSession(legacySession);
+    return legacySession;
+  }
+
+  return null;
+}
+
+function deleteSession() {
+  store.delete('session');
+  store.delete('sessionEncrypted');
+}
 
 function getDeviceInfo() {
   const os = require('os');
@@ -178,7 +223,7 @@ function setStatus(status) {
 }
 
 async function initializeServices() {
-  const session = store.get('session');
+  const session = getSession();
   const consent = store.get('monitoringConsent');
   
   if (!session?.token || !consent?.accepted) {
@@ -229,8 +274,8 @@ function createApiService(session) {
   return new ApiService(store.get('apiUrl'), session.token, {
     refreshToken: session.refreshToken,
     onTokenRefresh: ({ accessToken, refreshToken }) => {
-      store.set('session', {
-        ...store.get('session'),
+      setSession({
+        ...getSession(),
         token: accessToken,
         refreshToken,
       });
@@ -240,12 +285,15 @@ function createApiService(session) {
 
 // IPC Handlers
 ipcMain.handle('get-store', (event, key) => {
+  if (key === 'session') {
+    return getSession();
+  }
   return store.get(key);
 });
 
 ipcMain.handle('set-store', async (event, key, value) => {
   if (key === 'monitoringConsent') {
-    const session = store.get('session');
+    const session = getSession();
 
     if (value?.accepted && !session?.token) {
       throw new Error('Login is required before monitoring consent can be recorded');
@@ -267,6 +315,11 @@ ipcMain.handle('set-store', async (event, key, value) => {
     }
   }
 
+  if (key === 'session') {
+    setSession(value);
+    return true;
+  }
+
   store.set(key, value);
   if (key === 'monitoringConsent') {
     await initializeServices();
@@ -281,7 +334,7 @@ ipcMain.handle('login', async (event, { apiUrl, companyCode, employeeId, passcod
     const normalizedApiUrl = tempApi.baseUrl;
     
     store.set('apiUrl', normalizedApiUrl);
-    store.set('session', {
+    setSession({
       token: result.accessToken,
       refreshToken: result.refreshToken,
       employee: result.employee,
@@ -299,7 +352,7 @@ ipcMain.handle('login', async (event, { apiUrl, companyCode, employeeId, passcod
 
 ipcMain.handle('logout', async () => {
   await stopServices();
-  store.delete('session');
+  deleteSession();
   return { success: true };
 });
 
