@@ -61,7 +61,10 @@
           <select id="company-code" required>
             <option value="">Loading companies...</option>
           </select>
-          <p id="company-help" class="field-help">Company list is loaded from your configured QHR server.</p>
+          <div class="field-row">
+            <p id="company-help" class="field-help">Company list is loaded from your configured QHR server.</p>
+            <button type="button" id="reload-companies" class="link-button hidden">Retry</button>
+          </div>
         </div>
         <div class="form-group">
           <label for="employee-id">Employee ID</label>

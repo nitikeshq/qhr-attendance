@@ -43,7 +43,7 @@ npm run build:linux
 
 ## Configuration
 
-The desktop app resolves the QHR server from `QHR_API_URL`, or from the local development default `http://localhost:5001/api/v1`.
+The desktop app resolves the QHR server from `QHR_API_URL`. For local testing it falls back to the local backend on port `5001`.
 
 On first run, employees enter:
 - **Company**: Select from the active company list loaded from the configured QHR server

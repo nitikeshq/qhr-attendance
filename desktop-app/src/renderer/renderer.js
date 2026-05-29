@@ -9,6 +9,7 @@ const loginError = document.getElementById('login-error');
 const logoutBtn = document.getElementById('logout-btn');
 const companySelect = document.getElementById('company-code');
 const companyHelp = document.getElementById('company-help');
+const reloadCompaniesBtn = document.getElementById('reload-companies');
 
 // Window controls
 document.getElementById('minimize-btn').addEventListener('click', () => {
@@ -17,6 +18,10 @@ document.getElementById('minimize-btn').addEventListener('click', () => {
 
 document.getElementById('close-btn').addEventListener('click', () => {
   electronAPI.closeWindow();
+});
+
+reloadCompaniesBtn?.addEventListener('click', () => {
+  loadCompanies();
 });
 
 // Consent handlers
@@ -95,13 +100,23 @@ async function loadCompanies() {
   companySelect.disabled = true;
   companySelect.innerHTML = '<option value="">Loading companies...</option>';
   companyHelp.textContent = 'Company list is loading from the configured QHR server.';
+  reloadCompaniesBtn?.classList.add('hidden');
+  loginError.textContent = '';
 
-  const result = await electronAPI.getCompanies();
+  let result;
+  try {
+    result = await withTimeout(
+      electronAPI.getCompanies(),
+      10000,
+      'Company list request timed out. Please check that the QHR server is running.'
+    );
+  } catch (error) {
+    showCompanyLoadError(error.message || 'Unable to load companies');
+    return;
+  }
 
   if (!result.success) {
-    companySelect.innerHTML = '<option value="">Unable to load companies</option>';
-    companyHelp.textContent = 'Unable to load companies. Please contact your HR or IT admin.';
-    loginError.textContent = result.error || 'Unable to connect to QHR server';
+    showCompanyLoadError(result.error || 'Unable to connect to QHR server');
     return;
   }
 
@@ -110,6 +125,7 @@ async function loadCompanies() {
   if (!companies.length) {
     companySelect.innerHTML = '<option value="">No active companies found</option>';
     companyHelp.textContent = 'No active companies are available on this QHR server.';
+    reloadCompaniesBtn?.classList.remove('hidden');
     return;
   }
 
@@ -124,6 +140,23 @@ async function loadCompanies() {
   companySelect.disabled = false;
   companyHelp.textContent = 'Company list loaded. Select your company to continue.';
   loginError.textContent = '';
+}
+
+function showCompanyLoadError(message) {
+  companySelect.innerHTML = '<option value="">Unable to load companies</option>';
+  companySelect.disabled = true;
+  companyHelp.textContent = 'Companies could not be loaded. Make sure the QHR backend is running on localhost:5001, then retry.';
+  reloadCompaniesBtn?.classList.remove('hidden');
+  loginError.textContent = message;
+}
+
+function withTimeout(promise, timeoutMs, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]);
 }
 
 function escapeHtml(value) {
