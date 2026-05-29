@@ -194,7 +194,7 @@ loginForm.addEventListener('submit', async (e) => {
   loginError.textContent = '';
   
   const companyCode = companySelect.value.trim().toUpperCase();
-  const employeeId = document.getElementById('employee-id').value.trim().toUpperCase();
+  const employeeId = document.getElementById('employee-id').value.trim();
   const passcode = document.getElementById('passcode').value;
   
   if (!companyCode || !employeeId || !passcode) {
