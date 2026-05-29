@@ -1,4 +1,4 @@
-const { electronAPI } = window;
+const desktopAPI = window.electronAPI;
 
 // DOM Elements
 const loginScreen = document.getElementById('login-screen');
@@ -6,6 +6,7 @@ const dashboardScreen = document.getElementById('dashboard-screen');
 const consentModal = document.getElementById('consent-modal');
 const loginForm = document.getElementById('login-form');
 const loginError = document.getElementById('login-error');
+const loginDebug = document.getElementById('login-debug');
 const logoutBtn = document.getElementById('logout-btn');
 const companySelect = document.getElementById('company-code');
 const companyHelp = document.getElementById('company-help');
@@ -13,11 +14,11 @@ const reloadCompaniesBtn = document.getElementById('reload-companies');
 
 // Window controls
 document.getElementById('minimize-btn').addEventListener('click', () => {
-  electronAPI.minimizeWindow();
+  desktopAPI.minimizeWindow();
 });
 
 document.getElementById('close-btn').addEventListener('click', () => {
-  electronAPI.closeWindow();
+  desktopAPI.closeWindow();
 });
 
 reloadCompaniesBtn?.addEventListener('click', () => {
@@ -29,7 +30,7 @@ let pendingEmployee = null;
 
 document.getElementById('consent-accept')?.addEventListener('click', async () => {
   try {
-    await electronAPI.setStore('monitoringConsent', { 
+    await desktopAPI.setStore('monitoringConsent', { 
       accepted: true,
       policyVersion: 'desktop-monitoring-v1',
       timestamp: new Date().toISOString() 
@@ -49,7 +50,7 @@ document.getElementById('consent-accept')?.addEventListener('click', async () =>
 
 document.getElementById('consent-decline')?.addEventListener('click', async () => {
   consentModal.classList.add('hidden');
-  await electronAPI.logout();
+  await desktopAPI.logout();
   showLogin();
   loginError.textContent = 'You must accept monitoring to use this app during work hours';
   pendingEmployee = null;
@@ -57,8 +58,17 @@ document.getElementById('consent-decline')?.addEventListener('click', async () =
 
 // Check if already logged in
 async function init() {
-  const session = await electronAPI.getStore('session');
-  const consent = await electronAPI.getStore('monitoringConsent');
+  if (!window.electronAPI) {
+    companySelect.innerHTML = '<option value="">Desktop bridge unavailable</option>';
+    companySelect.disabled = true;
+    companyHelp.textContent = 'The desktop bridge did not load. Fully quit and reopen the tracker.';
+    loginError.textContent = 'Desktop preload failed';
+    return;
+  }
+
+  setDebug('Desktop bridge loaded. Checking saved session...');
+  const session = await desktopAPI.getStore('session');
+  const consent = await desktopAPI.getStore('monitoringConsent');
   
   if (session?.token) {
     if (consent?.accepted) {
@@ -102,11 +112,12 @@ async function loadCompanies() {
   companyHelp.textContent = 'Company list is loading from the configured QHR server.';
   reloadCompaniesBtn?.classList.add('hidden');
   loginError.textContent = '';
+  setDebug('Loading companies...');
 
   let result;
   try {
     result = await withTimeout(
-      electronAPI.getCompanies(),
+      desktopAPI.getCompanies(),
       10000,
       'Company list request timed out. Please check that the QHR server is running.'
     );
@@ -139,6 +150,7 @@ async function loadCompanies() {
   ].join('');
   companySelect.disabled = false;
   companyHelp.textContent = 'Company list loaded. Select your company to continue.';
+  setDebug(`Loaded ${companies.length} companies.`);
   loginError.textContent = '';
 }
 
@@ -148,6 +160,14 @@ function showCompanyLoadError(message) {
   companyHelp.textContent = 'Companies could not be loaded. Make sure the QHR backend is running on localhost:5001, then retry.';
   reloadCompaniesBtn?.classList.remove('hidden');
   loginError.textContent = message;
+  setDebug(`Company load failed: ${message}`);
+}
+
+function setDebug(message) {
+  if (loginDebug) {
+    loginDebug.textContent = message;
+  }
+  console.log(message);
 }
 
 function withTimeout(promise, timeoutMs, message) {
@@ -187,7 +207,7 @@ loginForm.addEventListener('submit', async (e) => {
   submitBtn.textContent = 'Logging in...';
   
   try {
-    const result = await electronAPI.login({
+    const result = await desktopAPI.login({
       companyCode,
       employeeId,
       passcode,
@@ -195,7 +215,7 @@ loginForm.addEventListener('submit', async (e) => {
     
     if (result.success) {
       // Check if consent was previously given
-      const consent = await electronAPI.getStore('monitoringConsent');
+      const consent = await desktopAPI.getStore('monitoringConsent');
       if (consent?.accepted) {
         showDashboard(result.employee);
         startActivityUpdates();
@@ -218,7 +238,7 @@ loginForm.addEventListener('submit', async (e) => {
 
 // Logout handler
 logoutBtn.addEventListener('click', async () => {
-  await electronAPI.logout();
+  await desktopAPI.logout();
   showLogin();
   document.getElementById('passcode').value = '';
 });
@@ -236,7 +256,7 @@ function startActivityUpdates() {
 }
 
 async function updateActivity() {
-  const summary = await electronAPI.getActivitySummary().catch(() => null);
+  const summary = await desktopAPI.getActivitySummary().catch(() => null);
   if (!summary) return;
   
   // Update stats
@@ -335,7 +355,7 @@ function formatNumber(num) {
 }
 
 // Listen for activity updates from main process
-electronAPI.onActivityUpdate((data) => {
+desktopAPI.onActivityUpdate((data) => {
   // Handle real-time updates if needed
 });
 

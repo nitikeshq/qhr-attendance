@@ -271,6 +271,14 @@ body {
   margin-top: 12px;
 }
 
+.debug-text {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  margin-top: 8px;
+  text-align: center;
+}
+
 /* Neumorphic User Info Card */
 .user-info {
   display: flex;

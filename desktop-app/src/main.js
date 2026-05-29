@@ -6,6 +6,7 @@ const ActivityTracker = require('./services/activityTracker');
 const ApiService = require('./services/apiService');
 
 const store = new Store();
+const isDev = process.env.NODE_ENV === 'development';
 let mainWindow = null;
 let tray = null;
 let activityTracker = null;
@@ -112,6 +113,12 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    if (isDev) {
+      console.log(`[renderer:${level}] ${message} (${sourceId}:${line})`);
+    }
+  });
 
   mainWindow.on('ready-to-show', () => {
     if (!store.get('minimizeToTray')) {
@@ -361,14 +368,17 @@ ipcMain.handle('get-companies', async (event, { apiUrl } = {}) => {
   for (const candidate of [...new Set(candidates)]) {
     try {
       const api = new ApiService(candidate);
+      if (isDev) console.log(`Loading companies from ${api.baseUrl}`);
       const companies = await api.getCompanies();
       store.set('apiUrl', api.baseUrl);
+      if (isDev) console.log(`Loaded ${companies.length} companies from ${api.baseUrl}`);
       return {
         success: true,
         companies,
         apiUrl: api.baseUrl,
       };
     } catch (error) {
+      if (isDev) console.log(`Company load failed for ${candidate || 'default API'}: ${error.message}`);
       lastError = error;
     }
   }
