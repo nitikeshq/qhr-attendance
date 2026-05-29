@@ -214,8 +214,7 @@ loginForm.addEventListener('submit', async (e) => {
     });
     
     if (result.success) {
-      // Check if consent was previously given
-      const consent = await desktopAPI.getStore('monitoringConsent');
+      const consent = result.monitoringConsent || await desktopAPI.getStore('monitoringConsent');
       if (consent?.accepted) {
         showDashboard(result.employee);
         startActivityUpdates();

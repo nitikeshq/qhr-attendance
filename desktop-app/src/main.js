@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, safeStorage } = require('electron');
 const path = require('path');
+const crypto = require('crypto');
 const Store = require('electron-store');
 const AutoLaunch = require('auto-launch');
 const ActivityTracker = require('./services/activityTracker');
@@ -69,10 +70,31 @@ function getDeviceInfo() {
   const os = require('os');
   return {
     hostname: os.hostname(),
-    platform: process.platform,
+    platform: getPlatformName(process.platform),
     osVersion: os.release(),
     arch: os.arch(),
+    deviceId: getDeviceId(),
   };
+}
+
+function getPlatformName(platform = process.platform) {
+  const platforms = {
+    darwin: 'macos',
+    win32: 'windows',
+    linux: 'linux',
+  };
+  return platforms[platform] || platform;
+}
+
+function getDeviceId() {
+  const existing = store.get('deviceId');
+  if (existing) return existing;
+
+  const os = require('os');
+  const machineId = `${os.hostname()}-${os.platform()}-${os.arch()}`;
+  const deviceId = crypto.createHash('md5').update(machineId).digest('hex');
+  store.set('deviceId', deviceId);
+  return deviceId;
 }
 
 async function setAutoStart(enabled) {
@@ -298,10 +320,41 @@ function createApiService(session) {
   });
 }
 
+async function restoreDesktopState(session = getSession()) {
+  if (!session?.token) return null;
+
+  const api = createApiService(session);
+  const state = await api.getDesktopDeviceState(getDeviceInfo());
+  const consent = state?.consent;
+
+  if (consent?.accepted) {
+    const restoredConsent = {
+      accepted: true,
+      policyVersion: consent.policyVersion || 'desktop-monitoring-v1',
+      timestamp: consent.acceptedAt || new Date().toISOString(),
+      syncedAt: consent.syncedAt || new Date().toISOString(),
+      restoredFromApi: true,
+    };
+    store.set('monitoringConsent', restoredConsent);
+    return restoredConsent;
+  }
+
+  store.delete('monitoringConsent');
+  return null;
+}
+
 // IPC Handlers
 ipcMain.handle('get-store', (event, key) => {
   if (key === 'session') {
     return getSession();
+  }
+  if (key === 'monitoringConsent') {
+    const localConsent = store.get(key);
+    if (localConsent?.accepted) return localConsent;
+    return restoreDesktopState().catch((error) => {
+      console.error('Failed to restore desktop state:', error.message);
+      return localConsent;
+    });
   }
   return store.get(key);
 });
@@ -355,11 +408,18 @@ ipcMain.handle('login', async (event, { apiUrl, companyCode, employeeId, passcod
       employee: result.employee,
     });
 
+    const restoredConsent = await restoreDesktopState();
+
     if (store.get('monitoringConsent')?.accepted) {
       await initializeServices();
     }
     
-    return { success: true, employee: result.employee, apiUrl: normalizedApiUrl };
+    return {
+      success: true,
+      employee: result.employee,
+      apiUrl: normalizedApiUrl,
+      monitoringConsent: restoredConsent,
+    };
   } catch (error) {
     return { success: false, error: error.message };
   }

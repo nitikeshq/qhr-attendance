@@ -146,6 +146,15 @@ class ApiService {
     });
   }
 
+  async getDesktopDeviceState(deviceInfo, policyVersion = 'desktop-monitoring-v1') {
+    const response = await this.request('/desktop-activity/state', {
+      method: 'POST',
+      body: JSON.stringify({ deviceInfo, policyVersion }),
+    });
+
+    return response.data;
+  }
+
   async updateAppUsage(topApps, topCategories) {
     return this.request('/desktop-activity/apps', {
       method: 'PUT',
