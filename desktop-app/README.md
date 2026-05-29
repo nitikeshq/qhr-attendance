@@ -43,9 +43,10 @@ npm run build:linux
 
 ## Configuration
 
-On first run, enter:
-- **Server URL**: Your QHR backend API URL (e.g., `https://hr.yourcompany.com/api/v1`). If you enter only the backend origin, the app appends `/api/v1` automatically.
-- **Company Code**: Your company code
+The desktop app resolves the QHR server from `QHR_API_URL`, or from the local development default `http://localhost:5001/api/v1`.
+
+On first run, employees enter:
+- **Company**: Select from the active company list loaded from the configured QHR server
 - **Employee ID**: Your employee ID
 - **Passcode**: Your login passcode
 
@@ -74,4 +75,4 @@ Data is sent to your company's QHR server and is visible to HR/Admin users.
 
 **Not tracking activity**: Ensure accessibility permissions are granted (macOS).
 
-**Can't connect to server**: Verify the server URL and check your network.
+**Can't connect to server**: Ask HR/IT to verify the configured QHR server URL and network access.

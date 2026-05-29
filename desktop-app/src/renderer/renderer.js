@@ -7,6 +7,8 @@ const consentModal = document.getElementById('consent-modal');
 const loginForm = document.getElementById('login-form');
 const loginError = document.getElementById('login-error');
 const logoutBtn = document.getElementById('logout-btn');
+const companySelect = document.getElementById('company-code');
+const companyHelp = document.getElementById('company-help');
 
 // Window controls
 document.getElementById('minimize-btn').addEventListener('click', () => {
@@ -67,12 +69,8 @@ async function init() {
   } else {
     showLogin();
   }
-  
-  // Load saved API URL
-  const savedApiUrl = await electronAPI.getStore('apiUrl');
-  if (savedApiUrl) {
-    document.getElementById('api-url').value = savedApiUrl;
-  }
+
+  await loadCompanies();
 }
 
 function showLogin() {
@@ -91,17 +89,62 @@ function showDashboard(employee) {
   document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
 }
 
+async function loadCompanies() {
+  if (!companySelect) return;
+
+  companySelect.disabled = true;
+  companySelect.innerHTML = '<option value="">Loading companies...</option>';
+  companyHelp.textContent = 'Company list is loading from the configured QHR server.';
+
+  const result = await electronAPI.getCompanies();
+
+  if (!result.success) {
+    companySelect.innerHTML = '<option value="">Unable to load companies</option>';
+    companyHelp.textContent = 'Unable to load companies. Please contact your HR or IT admin.';
+    loginError.textContent = result.error || 'Unable to connect to QHR server';
+    return;
+  }
+
+  const companies = Array.isArray(result.companies) ? result.companies : [];
+
+  if (!companies.length) {
+    companySelect.innerHTML = '<option value="">No active companies found</option>';
+    companyHelp.textContent = 'No active companies are available on this QHR server.';
+    return;
+  }
+
+  companySelect.innerHTML = [
+    '<option value="">Select your company</option>',
+    ...companies.map((company) => {
+      const code = escapeHtml(company.code || '');
+      const name = escapeHtml(company.name || company.code || 'Company');
+      return `<option value="${code}">${name} (${code})</option>`;
+    }),
+  ].join('');
+  companySelect.disabled = false;
+  companyHelp.textContent = 'Company list loaded. Select your company to continue.';
+  loginError.textContent = '';
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // Login handler
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   loginError.textContent = '';
   
-  const apiUrl = document.getElementById('api-url').value.trim();
-  const companyCode = document.getElementById('company-code').value.trim().toUpperCase();
+  const companyCode = companySelect.value.trim().toUpperCase();
   const employeeId = document.getElementById('employee-id').value.trim().toUpperCase();
   const passcode = document.getElementById('passcode').value;
   
-  if (!apiUrl || !companyCode || !employeeId || !passcode) {
+  if (!companyCode || !employeeId || !passcode) {
     loginError.textContent = 'Please fill in all fields';
     return;
   }
@@ -112,17 +155,12 @@ loginForm.addEventListener('submit', async (e) => {
   
   try {
     const result = await electronAPI.login({
-      apiUrl,
       companyCode,
       employeeId,
       passcode,
     });
     
     if (result.success) {
-      if (result.apiUrl) {
-        document.getElementById('api-url').value = result.apiUrl;
-      }
-
       // Check if consent was previously given
       const consent = await electronAPI.getStore('monitoringConsent');
       if (consent?.accepted) {

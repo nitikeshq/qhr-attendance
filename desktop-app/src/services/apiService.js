@@ -123,6 +123,11 @@ class ApiService {
     return response.data;
   }
 
+  async getCompanies() {
+    const response = await this.request('/auth/companies');
+    return response.data?.companies || [];
+  }
+
   async recordActivity(data) {
     return this.request('/desktop-activity/record', {
       method: 'POST',

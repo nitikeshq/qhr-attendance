@@ -350,6 +350,21 @@ ipcMain.handle('login', async (event, { apiUrl, companyCode, employeeId, passcod
   }
 });
 
+ipcMain.handle('get-companies', async (event, { apiUrl } = {}) => {
+  try {
+    const api = new ApiService(apiUrl || store.get('apiUrl'));
+    const companies = await api.getCompanies();
+    store.set('apiUrl', api.baseUrl);
+    return {
+      success: true,
+      companies,
+      apiUrl: api.baseUrl,
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('logout', async () => {
   await stopServices();
   deleteSession();

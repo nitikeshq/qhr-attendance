@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Auth
   login: (credentials) => ipcRenderer.invoke('login', credentials),
+  getCompanies: (options) => ipcRenderer.invoke('get-companies', options),
   logout: () => ipcRenderer.invoke('logout'),
   
   // Activity

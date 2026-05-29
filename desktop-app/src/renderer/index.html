@@ -57,12 +57,11 @@
       
       <form id="login-form">
         <div class="form-group">
-          <label for="api-url">Server URL</label>
-          <input type="url" id="api-url" placeholder="https://hr.yourcompany.com/api/v1" required>
-        </div>
-        <div class="form-group">
-          <label for="company-code">Company Code</label>
-          <input type="text" id="company-code" placeholder="COMPANY" required>
+          <label for="company-code">Company</label>
+          <select id="company-code" required>
+            <option value="">Loading companies...</option>
+          </select>
+          <p id="company-help" class="field-help">Company list is loaded from your configured QHR server.</p>
         </div>
         <div class="form-group">
           <label for="employee-id">Employee ID</label>
