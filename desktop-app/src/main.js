@@ -351,18 +351,29 @@ ipcMain.handle('login', async (event, { apiUrl, companyCode, employeeId, passcod
 });
 
 ipcMain.handle('get-companies', async (event, { apiUrl } = {}) => {
-  try {
-    const api = new ApiService(apiUrl || store.get('apiUrl'));
-    const companies = await api.getCompanies();
-    store.set('apiUrl', api.baseUrl);
-    return {
-      success: true,
-      companies,
-      apiUrl: api.baseUrl,
-    };
-  } catch (error) {
-    return { success: false, error: error.message };
+  const candidates = [];
+  if (apiUrl) candidates.push(apiUrl);
+  if (store.get('apiUrl')) candidates.push(store.get('apiUrl'));
+  candidates.push(undefined);
+
+  let lastError = null;
+
+  for (const candidate of [...new Set(candidates)]) {
+    try {
+      const api = new ApiService(candidate);
+      const companies = await api.getCompanies();
+      store.set('apiUrl', api.baseUrl);
+      return {
+        success: true,
+        companies,
+        apiUrl: api.baseUrl,
+      };
+    } catch (error) {
+      lastError = error;
+    }
   }
+
+  return { success: false, error: lastError?.message || 'Unable to load companies' };
 });
 
 ipcMain.handle('logout', async () => {
