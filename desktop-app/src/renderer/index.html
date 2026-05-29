@@ -14,7 +14,7 @@
     </div>
     <div class="titlebar-controls">
       <button id="minimize-btn" class="control-btn">−</button>
-      <button id="close-btn" class="control-btn close">×</button>
+      <button id="close-btn" class="control-btn close" title="Hide to tray">×</button>
     </div>
   </div>
 
@@ -33,17 +33,17 @@
           By continuing, you agree that your desktop activity will be monitored during working hours. This includes:
         </p>
         <ul class="consent-list">
-          <li>🖱️ Mouse and keyboard activity (not content)</li>
-          <li>📊 Active application tracking</li>
-          <li>⏱️ Time spent active vs idle</li>
-          <li>📍 Location verification (office/WFH)</li>
+          <li><span class="consent-code">INPUT</span><span>Mouse and keyboard activity counts, not content</span></li>
+          <li><span class="consent-code">APPS</span><span>Active application and window tracking</span></li>
+          <li><span class="consent-code">TIME</span><span>Active time, idle time, and session duration</span></li>
+          <li><span class="consent-code">PLACE</span><span>Office or approved WFH verification</span></li>
         </ul>
         <p class="consent-note">
           <strong>Note:</strong> Monitoring is only active during your designated work hours and when you are within office premises or during approved WFH time.
         </p>
         <div class="consent-actions">
-          <button id="consent-decline" class="btn-secondary">Decline</button>
-          <button id="consent-accept" class="btn-primary">I Understand & Accept</button>
+          <button id="consent-decline" class="btn btn-secondary consent-button">Decline</button>
+          <button id="consent-accept" class="btn btn-primary consent-button consent-button-primary">I Understand</button>
         </div>
       </div>
     </div>
@@ -93,22 +93,22 @@
 
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-icon active-icon">⏱</div>
+          <div class="stat-icon active-icon">ACT</div>
           <div class="stat-value" id="active-time">0h 0m</div>
           <div class="stat-label">Active Time</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon idle-icon">💤</div>
+          <div class="stat-icon idle-icon">IDL</div>
           <div class="stat-value" id="idle-time">0h 0m</div>
           <div class="stat-label">Idle Time</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon score-icon">📊</div>
+          <div class="stat-icon score-icon">PRD</div>
           <div class="stat-value" id="productivity-score">0%</div>
           <div class="stat-label">Productivity</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon session-icon">🕐</div>
+          <div class="stat-icon session-icon">SES</div>
           <div class="stat-value" id="session-time">0h 0m</div>
           <div class="stat-label">Session</div>
         </div>

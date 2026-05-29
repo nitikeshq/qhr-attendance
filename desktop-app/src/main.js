@@ -164,6 +164,14 @@ function createTray() {
       },
     },
     {
+      label: 'Hide to Tray',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.hide();
+        }
+      },
+    },
+    {
       label: 'Status',
       submenu: [
         {
@@ -199,7 +207,7 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: 'Quit',
+      label: 'Quit QHR Desktop',
       click: () => {
         isQuitting = true;
         app.quit();

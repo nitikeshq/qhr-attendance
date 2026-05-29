@@ -99,9 +99,9 @@ body {
 }
 
 .control-btn.close:hover {
-  background: var(--danger);
-  color: white;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  background: var(--bg-alt);
+  color: var(--danger);
+  box-shadow: var(--neu-shadow);
 }
 
 #app {
@@ -359,8 +359,21 @@ body {
 }
 
 .stat-icon {
-  font-size: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 26px;
+  padding: 0 8px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   margin-bottom: 10px;
+  box-shadow: var(--neu-shadow-inset);
 }
 
 .stat-value {
@@ -578,7 +591,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(232, 238, 241, 0.9);
+  background: rgba(30, 25, 20, 0.46);
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
@@ -592,9 +605,10 @@ body {
 
 .modal-content {
   background: var(--bg);
-  border-radius: 24px;
-  padding: 32px;
-  max-width: 400px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 430px;
   text-align: center;
   box-shadow: var(--neu-shadow);
 }
@@ -623,6 +637,9 @@ body {
 }
 
 .consent-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   color: var(--text);
   font-size: 13px;
   margin-bottom: 10px;
@@ -631,6 +648,20 @@ body {
   background: var(--bg-alt);
   border-radius: 10px;
   box-shadow: var(--neu-shadow-inset);
+}
+
+.consent-code {
+  flex: 0 0 auto;
+  min-width: 48px;
+  padding: 4px 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--primary-dark);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-align: center;
 }
 
 .consent-note {
@@ -647,4 +678,16 @@ body {
   display: flex;
   gap: 12px;
   justify-content: center;
+}
+
+.consent-button {
+  width: auto;
+  min-width: 132px;
+  padding: 12px 18px;
+  border-radius: 8px;
+}
+
+.consent-button-primary {
+  min-width: 164px;
+  letter-spacing: 0.01em;
 }
