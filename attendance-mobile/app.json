@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "QHR Attendance",
+    "slug": "qhr-attendance",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "platforms": ["android", "ios", "web"],
+    "android": {
+      "package": "com.qhr.attendance",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+    },
+    "ios": {
+      "bundleIdentifier": "com.qhr.attendance",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "QHR uses your location to verify attendance at an approved workplace."
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow QHR to verify attendance at your workplace."
+        }
+      ]
+    ]
+  }
+}

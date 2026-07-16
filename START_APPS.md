@@ -1,194 +1,86 @@
-# QHR Attendance System - Startup Guide
+# QHR Attendance - Local Startup
 
-## Quick Start Commands
+The recovered workspace uses one backend API and four clients. Run commands from PowerShell with Node.js 20.19 or newer.
 
-### 1. Start Backend API (Terminal 1)
-```bash
-cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile/Backend
-nvm use 24
-npm run dev
-```
-**Port:** 5001  
-**URL:** http://localhost:5001
+## 1. Backend API
 
----
-
-### 2. Start Admin Panel (Terminal 2)
-```bash
-cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile/Backend/admin-panel
-nvm use 24
-npm run dev
-```
-**Port:** 3001  
-**URL:** http://localhost:3001
-
----
-
-### 3. Start Landing Page (Terminal 3)
-```bash
-cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile/Backend/landing-page
-nvm use 24
-npm run dev
-```
-**Port:** 3000  
-**URL:** http://localhost:3000
-
----
-
-### 4. Start Mobile App (Terminal 4)
-```bash
-cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile
-nvm use 24
-npx expo start
-```
-
-Then:
-- Press `a` for Android emulator
-- Press `i` for iOS simulator
-- Scan QR code with Expo Go app on physical device
-
----
-
-## Troubleshooting
-
-### Port Already in Use
-If you get "EADDRINUSE" error:
-
-**Kill process on port 5001 (Backend):**
-```bash
-lsof -ti:5001 | xargs kill -9
-```
-
-**Kill process on port 3001 (Admin Panel):**
-```bash
-lsof -ti:3001 | xargs kill -9
-```
-
-**Kill process on port 3000 (Landing Page):**
-```bash
-lsof -ti:3000 | xargs kill -9
-```
-
-**Kill all Expo processes:**
-```bash
-pkill -f expo
-```
-
----
-
-### Expo Go Not Opening in Emulator
-
-**Option 1: Manual Launch**
-1. Open Android emulator
-2. Install Expo Go from Play Store
-3. Run `npx expo start` in terminal
-4. Press `a` to open in Android
-
-**Option 2: Use Development Build**
-```bash
-cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile
-nvm use 24
-npx expo run:android
-```
-
-**Option 3: Scan QR Code**
-1. Run `npx expo start`
-2. Open Expo Go app on your phone
-3. Scan the QR code shown in terminal
-
----
-
-### Package Version Mismatch
-
-Update packages to compatible versions:
-```bash
-cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile
-nvm use 24
-npx expo install expo@~54.0.33 expo-router@~6.0.23 @react-native-community/datetimepicker@8.4.4
-```
-
----
-
-## Database Setup
-
-### Database
-
-The production backend is MongoDB-backed through `attendance-mobile/Backend`. PostgreSQL migration snippets in older docs are legacy and should not be used for the current one-backend architecture.
-
-```bash
-cd /Users/nitikeshd/Projects/qhr-attendance/attendance-mobile/Backend
+```powershell
+cd C:\Q-Projects\qhr-attendance\attendance-mobile\Backend
+npm install
 npm run seed
+npm run dev
 ```
 
----
+URL: `http://localhost:5001`
+Health: `http://localhost:5001/health`
 
-## Environment Variables
+## 2. Admin Portal
 
-### Backend (.env)
-```env
-PORT=5001
-MONGODB_URI=mongodb://localhost:27017/attendance
-REDIS_URL=redis://localhost:6379
-JWT_SECRET=your-secret-key
-NODE_ENV=development
+```powershell
+cd C:\Q-Projects\qhr-attendance\admin-panel
+npm install
+npm run dev
 ```
 
-### Admin Panel (.env.local)
+URL: `http://localhost:3003`
+
+## 3. Landing Page
+
+```powershell
+cd C:\Q-Projects\qhr-attendance\landing-page
+npm install
+npm run dev
+```
+
+URL: `http://localhost:3002`
+
+## 4. Mobile App
+
+```powershell
+cd C:\Q-Projects\qhr-attendance\attendance-mobile
+npm install
+npm start
+```
+
+Press `a` for Android, `i` on macOS for iOS, or `w` for web. The web client can be started directly on port 8082 with:
+
+```powershell
+npm run web -- --port 8082
+```
+
+For a physical phone, set `EXPO_PUBLIC_API_URL` to the computer's LAN address, for example `http://192.168.1.20:5001`.
+
+## 5. Desktop Tracker
+
+```powershell
+cd C:\Q-Projects\qhr-attendance\desktop-app
+npm install
+npm start
+```
+
+Build a Windows package with `npm run build:win`, or an unpacked verification build with `npm run pack`.
+
+## Configuration
+
+Admin and landing default to `http://127.0.0.1:5001`. Override at build time with:
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5001
 ```
 
-### Landing Page (.env.local)
+Desktop uses `QHR_API_URL`; mobile uses `EXPO_PUBLIC_API_URL`.
+
+Billing reminders are queued automatically. Configure SendGrid to deliver them:
+
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5001
+SENDGRID_API_KEY=your-sendgrid-api-key
+EMAIL_FROM=billing@example.com
+EMAIL_FROM_NAME=QHR Billing
+BILLING_CYCLE_INTERVAL_MS=3600000
 ```
 
----
+Cashfree and PayU remain in test configuration until production merchant credentials and signed webhook URLs are supplied. Gateway secrets must be provided through environment/secret management and must never be stored in the JSON datastore or browser bundle.
 
-## Default Login Credentials
+Local persistence is `attendance-mobile/Backend/data/dev-db.json`. Run `npm run seed` in the backend to reset demo data.
 
-### Super Admin
-- **Email:** admin@qhr.com
-- **Password:** admin123
-
-### Company Admin
-- **Email:** company@example.com
-- **Password:** password123
-
----
-
-## Features Overview
-
-### Mobile App
-- ✅ GPS Attendance with geofencing
-- ✅ Desktop Activity Tracking
-- ✅ Leave Management
-- ✅ Salary Slips (PF, ESIC, TDS)
-- ✅ Exit Formalities & F&F
-- ✅ iOS Glassmorphism Design
-
-### Admin Panel
-- ✅ Employee Management
-- ✅ Attendance Reports
-- ✅ Payroll Processing
-- ✅ Demo Requests (Leads)
-- ✅ Subscription Management
-- ✅ Tasks & Projects
-
-### Landing Page
-- ✅ SME-focused messaging
-- ✅ Request a Demo form
-- ✅ Geo & Desktop monitoring features
-- ✅ Pricing plans
-
----
-
-## Need Help?
-
-- **Documentation:** Check IMPLEMENTATION_SUMMARY.md
-- **Design Analysis:** Check ADMIN_PANEL_DESIGN_ANALYSIS.md
-- **Deployment:** Check Backend/DEPLOYMENT_GUIDE.md
-
-## Current Production Readiness Note
-
-Backend validation is currently the cleanest surface: 42 Jest suites / 396 tests pass, coverage is 92.60% statements / 93.05% lines, and backend lint is clean. Mobile, remaining web, and desktop checks still need enough disk headroom for dependency/build verification.
+See [CURRENT_IMPLEMENTATION.md](CURRENT_IMPLEMENTATION.md) for the authoritative architecture, implemented modules, validation results, and production integration boundaries.

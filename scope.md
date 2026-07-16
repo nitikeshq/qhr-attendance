@@ -756,7 +756,7 @@ QHR Attendance Management System is a comprehensive HRMS solution designed for S
 
 #### Marketing Features
 - **Feature Showcase**: Interactive demonstrations
-- **Pricing Plans**: Tier-based subscription model
+- **Pricing Plans**: Per-paid-user subscription model with one permanent free Company Admin seat
 - **Demo Requests**: Lead capture form
 - **Company Registration**: Self-service onboarding
 - **Testimonials**: Customer success stories
@@ -773,30 +773,54 @@ QHR Attendance Management System is a comprehensive HRMS solution designed for S
 4. **Manager**: Team management, approvals, reports
 5. **Employee**: Basic features, self-service
 
+### Responsibility Boundary
+
+- **Super Admin** operates the QHR SaaS platform: companies, tenant access, subscriptions, platform employees/accounts, revenue, sales leads, support, audit history, and system configuration.
+- **Company Admin, HR Manager, and Manager** operate each tenant's daily workforce workflows according to their company scope.
+- Super Admin does not receive or process routine employee leave, WFH, grievance, payroll, attendance, project, geofence, or desktop-activity queues. Tenant data is available through a company drill-down only for account administration and audited platform support.
+- Suspending or archiving a company blocks tenant logins and closes active tenant sessions. Company archival is a reversible soft delete.
+
+### Subscription and Billing Contract
+
+- One designated Company Admin seat is free for every tenant. Every additional active account consumes a paid seat.
+- Monthly and yearly terms are prepaid. Prices are displayed per paid user per month; an annual discount applies only to yearly billing.
+- Super Admin can configure plan, paid-seat allowance, per-user price, annual discount, custom renewal total, billing cycle, next renewal date, gateway, and negotiated terms per company.
+- Billing modes are `automatic`, `manual_online`, `manual_offline`, and `custom`.
+- Only `automatic` billing can enter the 15-day grace period and automatically pause paid-user access.
+- `manual_online`, `manual_offline`, and `custom` invoices can be overdue or partially paid without automatically restricting company access.
+- Administrative suspension for fraud, security, legal, or contract termination is separate from billing suspension and always requires an audited Super Admin action.
+- An automatic payment completed during grace renews from the original expiry date; grace days are included in that term and are not charged twice.
+- After an automatic account pauses, paused days are never charged. Reactivation requires unpaid prior invoices, prorated grace usage, and a new monthly/yearly term paid in advance from the successful payment date.
+- Company Admin can submit manual bank/UPI/cheque payment details and proof. Super Admin confirms, rejects, or reverses each transaction.
+- Partial payments remain attached to the invoice and expose the remaining balance. Standard prepaid access is not treated as fully renewed until the required amount is cleared.
+- Custom clients can use negotiated prices, installments, credit periods, seat allowances, and reminder settings. They never receive billing-based automatic suspension.
+- Renewal email schedule is 7, 3, and 1 day before renewal. Automatic-payment grace reminders are sent on days 1, 3, 7, 10, 13, 14, and 15, followed by pause/reactivation confirmation.
+- Billing dashboards expose collected amount, outstanding amount, pending verification, upcoming 30-day renewals, total renewal book, invoices, payments, and partial balances.
+
 ### Permission Matrix
 
 | Feature | Super Admin | Company Admin | HR Manager | Manager | Employee |
 |---------|-------------|---------------|------------|---------|----------|
 | **Authentication** | ✓ | ✓ | ✓ | ✓ | ✓ |
 | **Profile Management** | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Attendance** | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Attendance - Self** | ✓ | ✓ | ✓ | ✓ | ✓ |
 | **Leave - Apply** | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Leave - Approve** | ✓ | ✓ | ✓ | ✓ | ✗ |
-| **Leave - Balance Update** | ✓ | ✓ | ✓ | ✗ | ✗ |
+| **Leave - Approve** | ✗ | ✓ | ✓ | ✓ | ✗ |
+| **Leave - Balance Update** | ✗ | ✓ | ✓ | ✗ | ✗ |
 | **WFH - Apply** | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **WFH - Approve** | ✓ | ✓ | ✓ | ✓ | ✗ |
+| **WFH - Approve** | ✗ | ✓ | ✓ | ✓ | ✗ |
 | **Grievance - Submit** | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Grievance - Manage** | ✓ | ✓ | ✓ | ✓ | ✗ |
-| **Payroll - Generate** | ✓ | ✓ | ✓ | ✗ | ✗ |
-| **Payroll - Approve** | ✓ | ✓ | ✓ | ✗ | ✗ |
-| **Payroll - View** | ✓ | ✓ | ✓ | ✗ | Own |
+| **Grievance - Manage** | ✗ | ✓ | ✓ | ✓ | ✗ |
+| **Payroll - Generate** | ✗ | ✓ | ✓ | ✗ | ✗ |
+| **Payroll - Approve** | ✗ | ✓ | ✓ | ✗ | ✗ |
+| **Payroll - View** | Own | ✓ | ✓ | ✗ | Own |
 | **Employee Management** | ✓ | ✓ | ✓ | ✗ | ✗ |
 | **Company Settings** | ✓ | ✓ | ✗ | ✗ | ✗ |
-| **Project Management** | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Task Management** | ✓ | ✓ | ✓ | ✓ | ✓ |
-| **Desktop Activity - View** | ✓ | ✓ | ✓ | ✓ | Own |
-| **Desktop Activity - Team** | ✓ | ✓ | ✓ | ✓ | ✗ |
-| **Reports - All** | ✓ | ✓ | ✓ | Team | Own |
+| **Project Management** | ✗ | ✓ | ✓ | ✓ | ✓ |
+| **Task Management** | ✗ | ✓ | ✓ | ✓ | ✓ |
+| **Desktop Activity - View** | Own | ✓ | ✓ | ✓ | Own |
+| **Desktop Activity - Team** | ✗ | ✓ | ✓ | ✓ | ✗ |
+| **Reports** | Platform | All | All | Team | Own |
 | **System Configuration** | ✓ | ✗ | ✗ | ✗ | ✗ |
 
 ### Special Permissions
@@ -811,7 +835,7 @@ QHR Attendance Management System is a comprehensive HRMS solution designed for S
 ## Integration Capabilities
 
 ### Third-party Integrations
-- **Payment Gateways**: Stripe, Razorpay for subscription payments
+- **Payment Gateways**: Cashfree and PayU for checkout, recurring mandates, payment webhooks, refunds, and reconciliation
 - **Email Services**: SendGrid, AWS SES for notifications
 - **SMS Services**: Twilio, MSG91 for SMS alerts
 - **Cloud Storage**: AWS S3, Google Cloud for file storage
@@ -1702,7 +1726,10 @@ QHR Attendance Management System is a comprehensive HRMS solution designed for S
 - **Subscription Management** (`/subscriptions`)
   - Subscription plans
   - Customer subscriptions
-  - Billing management
+  - Automatic, manual online, manual offline, and custom billing management
+  - Collected, outstanding, pending-verification, upcoming-renewal, and renewal-book totals
+  - Invoice ledger, part payments, offline confirmations, refunds, credits, and audit history
+  - One free Company Admin seat and configurable paid-seat allowances
   - Plan upgrades
   - Revenue reports
 
@@ -1791,8 +1818,10 @@ Login → Main App (Tabs) → Various Screens
 - ✅ Security settings
 - ✅ Administrative tools
 
-### Super Admin Features (Admin +)
+### Super Admin Platform Features
 - ✅ Multi-company management
+- ✅ Company details, editing, suspension, archival, and reactivation
+- ✅ Cross-company employee account management
 - ✅ Subscription management
 - ✅ System administration
 - ✅ Global settings
@@ -1800,6 +1829,7 @@ Login → Main App (Tabs) → Various Screens
 - ✅ Support management
 - ✅ System analytics
 - ✅ Platform configuration
+- ✅ Audited platform support actions
 
 ---
 

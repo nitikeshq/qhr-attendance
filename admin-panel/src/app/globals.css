@@ -103,3 +103,13 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #A0AEC0;
 }
+
+@media (max-width: 639px) {
+  .neu-card {
+    box-shadow: 3px 3px 7px var(--neu-shadow-dark), -3px -3px 7px var(--neu-shadow-light);
+  }
+
+  .neu-button {
+    box-shadow: 2px 2px 5px var(--neu-shadow-dark), -2px -2px 5px var(--neu-shadow-light);
+  }
+}

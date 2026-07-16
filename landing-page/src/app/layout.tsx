@@ -2,9 +2,11 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'QHR - AI-Powered HR Management Platform',
-  description: 'Transform your workforce management with GPS-based attendance, smart analytics, and AI-powered insights. Start free today.',
-  keywords: 'HR software, attendance management, employee tracking, payroll, leave management',
+  title: 'QHR Attendance - Workforce Attendance and HRMS',
+  description:
+    'QHR Attendance helps SMEs manage GPS attendance, leave, WFH, payroll inputs, grievances, wellness, desktop activity, and company onboarding.',
+  keywords:
+    'QHR, attendance management, GPS attendance, HRMS, leave management, WFH requests, employee tracking',
 }
 
 export default function RootLayout({

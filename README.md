@@ -1,5 +1,7 @@
 # QHR Attendance Management System
 
+> **Recovered workspace note (2026-07-13):** Use [CURRENT_IMPLEMENTATION.md](CURRENT_IMPLEMENTATION.md) and [START_APPS.md](START_APPS.md) as the authoritative architecture and startup references. Some sections below document the unavailable original submodule and are retained as historical product scope.
+
 A comprehensive employee attendance tracking system with GPS-based geofencing, leave management, WFH requests, grievance handling, and health & wellness features for SMEs.
 
 ---

@@ -22,7 +22,7 @@ module.exports = {
         GPS_UPDATE_INTERVAL_MS: 30000,
         GEOFENCE_DEFAULT_RADIUS_METERS: 500,
         LOG_LEVEL: 'info',
-        ALLOWED_ORIGINS: 'http://localhost:3000,http://localhost:3001,exp://192.168.29.69:8081,exp://192.168.29.69:8082',
+        ALLOWED_ORIGINS: 'http://localhost:3002,http://localhost:3003,http://localhost:8082,exp://192.168.29.69:8082',
         MAX_FILE_SIZE_MB: 10,
         UPLOAD_PATH: './uploads'
       },
@@ -37,15 +37,15 @@ module.exports = {
       name: 'qhr-admin-panel',
       script: 'npm',
       args: 'run dev',
-      cwd: './attendance-mobile/Backend/admin-panel',
+      cwd: './admin-panel',
       instances: 1,
       autorestart: true,
       watch: false,
       max_memory_restart: '1G',
       env: {
         NODE_ENV: 'development',
-        PORT: 3001,
-        NEXT_PUBLIC_API_URL: 'http://localhost:5001/api'
+        PORT: 3003,
+        NEXT_PUBLIC_API_URL: 'http://localhost:5001'
       },
       error_file: './logs/admin-panel-error.log',
       out_file: './logs/admin-panel-out.log',
@@ -58,15 +58,15 @@ module.exports = {
       name: 'qhr-landing-page',
       script: 'npm',
       args: 'run dev',
-      cwd: './attendance-mobile/Backend/landing-page',
+      cwd: './landing-page',
       instances: 1,
       autorestart: true,
       watch: false,
       max_memory_restart: '512M',
       env: {
         NODE_ENV: 'development',
-        PORT: 3000,
-        NEXT_PUBLIC_API_URL: 'http://localhost:5001/api'
+        PORT: 3002,
+        NEXT_PUBLIC_API_URL: 'http://localhost:5001'
       },
       error_file: './logs/landing-page-error.log',
       out_file: './logs/landing-page-out.log',

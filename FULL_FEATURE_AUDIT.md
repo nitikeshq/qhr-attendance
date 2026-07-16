@@ -1,5 +1,7 @@
 # QHR Full Feature Audit
 
+> **Current implementation:** See [CURRENT_IMPLEMENTATION.md](CURRENT_IMPLEMENTATION.md) for the post-recovery architecture and completed validation. This audit is retained as the broader product-scope gap analysis for future enterprise work.
+
 Status: broad static audit plus first implementation/test pass completed. This is not a final production sign-off because disk space is still critically low and mobile, remaining web, and desktop verification need more headroom.
 
 ## Executive Summary

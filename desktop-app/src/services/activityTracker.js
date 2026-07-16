@@ -1,5 +1,4 @@
 const { uIOhook } = require('uiohook-napi');
-const activeWin = require('active-win');
 
 class ActivityTracker {
   constructor(apiService, store) {
@@ -35,6 +34,7 @@ class ActivityTracker {
     this.snapshotTimer = null;
     this.windowTracker = null;
     this.activeWindow = null;
+    this.activeWindowReader = null;
     this.isFlushingOfflineSnapshots = false;
     this.appUsage = {};
     this.categoryUsage = {};
@@ -158,7 +158,11 @@ class ActivityTracker {
 
     this.windowTracker = setInterval(async () => {
       try {
-        const win = await activeWin();
+        if (!this.activeWindowReader) {
+          const activeWindowModule = await import('get-windows');
+          this.activeWindowReader = activeWindowModule.default;
+        }
+        const win = await this.activeWindowReader();
         if (win) {
           this.activeWindow = {
             title: win.title,

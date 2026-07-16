@@ -1,5 +1,7 @@
 # QHR Production Readiness
 
+> **Current implementation:** See [CURRENT_IMPLEMENTATION.md](CURRENT_IMPLEMENTATION.md). The original private submodule was unavailable, so the runnable local backend, admin, landing, mobile, and desktop surfaces were recovered and revalidated on 2026-07-13. Historical paths and test counts below describe the former repository state.
+
 ## Current canonical surfaces
 
 - Backend API: `attendance-mobile/Backend`

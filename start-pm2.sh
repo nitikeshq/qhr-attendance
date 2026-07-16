@@ -52,52 +52,6 @@ check_node() {
     print_status "Node.js version: $NODE_VERSION"
 }
 
-# Check if MongoDB is running
-check_mongodb() {
-    if ! pgrep -x "mongod" > /dev/null; then
-        print_warning "MongoDB is not running. Starting MongoDB..."
-        
-        # Try to start MongoDB (works for macOS with Homebrew)
-        if command -v brew &> /dev/null; then
-            brew services start mongodb-community
-        else
-            print_warning "Please start MongoDB manually"
-        fi
-        
-        # Wait a moment for MongoDB to start
-        sleep 3
-    fi
-    
-    if pgrep -x "mongod" > /dev/null; then
-        print_status "MongoDB is running"
-    else
-        print_error "MongoDB is not running. Please start it manually."
-    fi
-}
-
-# Check if Redis is running
-check_redis() {
-    if ! pgrep -x "redis-server" > /dev/null; then
-        print_warning "Redis is not running. Starting Redis..."
-        
-        # Try to start Redis (works for macOS with Homebrew)
-        if command -v brew &> /dev/null; then
-            brew services start redis
-        else
-            print_warning "Please start Redis manually"
-        fi
-        
-        # Wait a moment for Redis to start
-        sleep 2
-    fi
-    
-    if pgrep -x "redis-server" > /dev/null; then
-        print_status "Redis is running"
-    else
-        print_error "Redis is not running. Please start it manually."
-    fi
-}
-
 # Create logs directory
 create_logs_dir() {
     if [ ! -d "logs" ]; then
@@ -121,23 +75,23 @@ install_dependencies() {
     fi
     
     # Admin Panel dependencies
-    if [ -d "attendance-mobile/Backend/admin-panel" ]; then
-        cd attendance-mobile/Backend/admin-panel
+    if [ -d "admin-panel" ]; then
+        cd admin-panel
         if [ ! -d "node_modules" ]; then
             print_status "Installing Admin Panel dependencies..."
             npm install
         fi
-        cd ../..
+        cd ..
     fi
     
     # Landing Page dependencies
-    if [ -d "attendance-mobile/Backend/landing-page" ]; then
-        cd attendance-mobile/Backend/landing-page
+    if [ -d "landing-page" ]; then
+        cd landing-page
         if [ ! -d "node_modules" ]; then
             print_status "Installing Landing Page dependencies..."
             npm install
         fi
-        cd ../..
+        cd ..
     fi
     
     # Mobile App dependencies
@@ -183,8 +137,8 @@ show_status() {
     
     echo ""
     print_status "Service URLs:"
-    echo "  🌐 Landing Page:     http://localhost:3000"
-    echo "  🖥️  Admin Panel:      http://localhost:3001"
+    echo "  Landing Page:        http://localhost:3002"
+    echo "  Admin Panel:         http://localhost:3003"
     echo "  🔧 Backend API:       http://localhost:5001"
     echo "  📱 Mobile App (Web):  http://localhost:8082"
     echo ""
@@ -217,9 +171,6 @@ main() {
     # Run checks
     check_node
     check_pm2
-    check_mongodb
-    check_redis
-    
     # Setup
     create_logs_dir
     install_dependencies

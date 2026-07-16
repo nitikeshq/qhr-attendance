@@ -40,15 +40,15 @@ module.exports = {
       name: 'qhr-admin-panel',
       script: 'npm',
       args: 'start',
-      cwd: './attendance-mobile/Backend/admin-panel',
+      cwd: './admin-panel',
       instances: 1,
       autorestart: true,
       watch: false,
       max_memory_restart: process.env.ADMIN_MAX_MEMORY || '512M',
       env: {
         NODE_ENV: 'production',
-        PORT: process.env.ADMIN_PORT || 3001,
-        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
+        PORT: process.env.ADMIN_PORT || 3003,
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
       },
       error_file: './logs/admin-panel-error.log',
       out_file: './logs/admin-panel-out.log',
@@ -61,15 +61,15 @@ module.exports = {
       name: 'qhr-landing-page',
       script: 'npm',
       args: 'start',
-      cwd: './attendance-mobile/Backend/landing-page',
+      cwd: './landing-page',
       instances: 1,
       autorestart: true,
       watch: false,
       max_memory_restart: process.env.LANDING_MAX_MEMORY || '512M',
       env: {
         NODE_ENV: 'production',
-        PORT: process.env.LANDING_PORT || 3000,
-        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
+        PORT: process.env.LANDING_PORT || 3002,
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
       },
       error_file: './logs/landing-page-error.log',
       out_file: './logs/landing-page-out.log',
