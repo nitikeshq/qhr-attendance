@@ -6,11 +6,19 @@ const {
   calculateWorkDuration,
   dateKey,
   employeeRef,
+  findEmployee,
   newId,
   nowIso,
   paginate,
   startOfDayIso,
 } = require('../utils/records');
+const {
+  PERIOD_PATTERN,
+  buildAttendanceSummary,
+  normalizeAttendancePolicy,
+  normalizeHolidays,
+  normalizeLeaveTypes,
+} = require('../utils/attendancePolicy');
 
 const router = express.Router();
 
@@ -34,15 +42,140 @@ function attendanceSummary(items) {
 }
 
 function lateInfo(company, checkedInAt) {
+  const policy = normalizeAttendancePolicy(company);
   const officeStart = company?.settings?.officeStart || '09:30';
   const [hours, minutes] = officeStart.split(':').map(Number);
   const checkIn = new Date(checkedInAt);
   const expected = new Date(checkIn);
   expected.setUTCHours(hours || 9, minutes || 30, 0, 0);
-  const lateByMinutes = Math.max(0, Math.round((checkIn.getTime() - expected.getTime()) / 60000));
+  const lateByMinutes = Math.max(0, Math.round((checkIn.getTime() - expected.getTime()) / 60000) - policy.lateGraceMinutes);
   return {
     isLate: lateByMinutes > 0,
     lateByMinutes,
+  };
+}
+
+function currentPeriodFrom(value) {
+  const key = dateKey(value);
+  return key.slice(0, 7);
+}
+
+function stripDailySummary(summary) {
+  const { days, ...rest } = summary;
+  return rest;
+}
+
+function visibleEmployees(data, req) {
+  return data.employees.filter((employee) => (
+    employee.companyId === req.company._id &&
+    employee.status !== 'inactive' &&
+    (req.user.role !== 'manager' || employee._id === req.user._id || employee.managerId === req.user._id)
+  ));
+}
+
+function companyAreas(company) {
+  return Array.isArray(company?.attendanceAreas) ? company.attendanceAreas : [];
+}
+
+function companyWorkLocations(company) {
+  return Array.isArray(company?.workLocations) ? company.workLocations : [];
+}
+
+function areaNameFor(company, areaId) {
+  if (!areaId) return null;
+  const match = companyAreas(company).find((area) => area._id === areaId || area.id === areaId);
+  return match?.name || null;
+}
+
+function areaAddressFor(company, areaId) {
+  if (!areaId) return null;
+  const match = companyAreas(company).find((area) => area._id === areaId || area.id === areaId);
+  return match?.address || null;
+}
+
+function workLocationNameFor(company, workLocationId) {
+  if (!workLocationId) return null;
+  const match = companyWorkLocations(company).find((location) => (
+    location._id === workLocationId || location.id === workLocationId || location.code === workLocationId
+  ));
+  return match?.name || match?.title || null;
+}
+
+function resolvedAreaId(attendance) {
+  return attendance?.areaId || attendance?.checkIn?.areaId || attendance?.checkOut?.areaId || null;
+}
+
+function resolvedAreaName(company, attendance) {
+  const areaId = resolvedAreaId(attendance);
+  return areaNameFor(company, areaId) ||
+    attendance?.areaName ||
+    attendance?.checkIn?.areaName ||
+    attendance?.checkOut?.areaName ||
+    null;
+}
+
+function resolvedWorkLocationId(attendance, employee) {
+  return attendance?.workLocationId || employee?.workLocationId || null;
+}
+
+function rowStatus(row) {
+  return row.attendance?.status || row.day?.status || 'not_checked_in';
+}
+
+function matchesRowFilters(row, query) {
+  const areaId = String(query.areaId || '').trim();
+  if (areaId && String(row.areaId || '') !== areaId) return false;
+
+  const workLocationId = String(query.workLocationId || '').trim();
+  if (workLocationId && String(row.workLocationId || '') !== workLocationId) return false;
+
+  const status = String(query.status || '').trim();
+  if (status && rowStatus(row) !== status) return false;
+
+  const search = String(query.q || '').trim().toLowerCase();
+  if (search) {
+    const employee = row.employee || {};
+    const haystack = [
+      employee.firstName,
+      employee.lastName,
+      `${employee.firstName || ''} ${employee.lastName || ''}`,
+      employee.employeeId,
+      employee.email,
+    ].filter(Boolean).join(' ').toLowerCase();
+    if (!haystack.includes(search)) return false;
+  }
+
+  return true;
+}
+
+function teamAttendanceRows(data, req, day, period) {
+  return visibleEmployees(data, req).map((employee) => {
+    const attendance = data.attendances.find((item) => item.employeeId === employee._id && item.dateKey === day) || null;
+    const summary = buildAttendanceSummary(data, req.company, employee, period, req.company.payrollSettings || {});
+    const workLocationId = resolvedWorkLocationId(attendance, employee);
+    return {
+      employee: employeeRef(employee),
+      attendance,
+      day: summary.days.find((item) => item.date === day) || null,
+      summary: stripDailySummary(summary),
+      areaId: resolvedAreaId(attendance),
+      areaName: resolvedAreaName(req.company, attendance),
+      workLocationId,
+      workLocationName: workLocationNameFor(req.company, workLocationId),
+    };
+  });
+}
+
+function filteredTeamRows(data, req, day, period) {
+  return teamAttendanceRows(data, req, day, period).filter((row) => matchesRowFilters(row, req.query || {}));
+}
+
+function appliedFilters(query) {
+  return {
+    areaId: String(query.areaId || '').trim() || null,
+    workLocationId: String(query.workLocationId || '').trim() || null,
+    status: String(query.status || '').trim() || null,
+    q: String(query.q || '').trim() || null,
   };
 }
 
@@ -58,16 +191,53 @@ function distanceMeters(pointA, pointB) {
   return 2 * earthRadius * Math.asin(Math.sqrt(haversine));
 }
 
+function hasCoordinates(location) {
+  return Boolean(location) && location.latitude !== undefined && location.longitude !== undefined;
+}
+
+function resolveNearestArea(company, location) {
+  if (!hasCoordinates(location)) return null;
+  const areas = companyAreas(company).filter((area) => area.active !== false);
+  if (!areas.length) return null;
+
+  const measured = areas.map((area) => ({
+    area,
+    distanceMeters: Math.round(distanceMeters(location, area)),
+    inside: distanceMeters(location, area) <= Number(area.radiusMeters || 150),
+  })).sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+  const nearest = measured.find((entry) => entry.inside) || measured[0];
+  return { area: nearest.area, distanceMeters: nearest.distanceMeters, inside: nearest.inside };
+}
+
+function areaStamp(match) {
+  if (!match) return { areaId: null, areaName: null, distanceMeters: null };
+  return {
+    areaId: match.area._id || match.area.id || null,
+    areaName: match.area.name || null,
+    distanceMeters: match.distanceMeters,
+  };
+}
+
 function validateGeofence(company, body) {
-  if (body.method !== 'geofence') return null;
-  if (body.location?.latitude === undefined || body.location?.longitude === undefined) {
-    return 'Location is required for geofence check-in';
+  const location = body.location;
+  const enforced = body.method === 'geofence';
+
+  if (!hasCoordinates(location)) {
+    return enforced ? { error: 'Location is required for geofence check-in' } : {};
   }
 
-  const areas = (company?.attendanceAreas || []).filter((area) => area.active !== false);
-  if (!areas.length) return 'No active attendance area is configured for this company';
-  const insideArea = areas.some((area) => distanceMeters(body.location, area) <= Number(area.radiusMeters || 150));
-  return insideArea ? null : 'You are outside every authorized attendance area';
+  const activeAreas = companyAreas(company).filter((area) => area.active !== false);
+  if (!activeAreas.length) {
+    return enforced ? { error: 'No active attendance area is configured for this company' } : {};
+  }
+
+  const match = resolveNearestArea(company, location);
+  if (enforced && !match.inside) {
+    return { error: 'You are outside every authorized attendance area' };
+  }
+
+  return { area: match.area, distanceMeters: match.distanceMeters };
 }
 
 router.get('/today', async (req, res, next) => {
@@ -75,8 +245,11 @@ router.get('/today', async (req, res, next) => {
     const data = await req.app.locals.store.read();
     const today = dateKey(req.query.date);
     const attendance = data.attendances.find((item) => item.employeeId === req.user._id && item.dateKey === today) || null;
+    const summary = buildAttendanceSummary(data, req.company, req.user, currentPeriodFrom(today), req.company.payrollSettings || {});
     return ok(res, {
       attendance,
+      day: summary.days.find((item) => item.date === today) || null,
+      policy: normalizeAttendancePolicy(req.company),
       status: attendance?.status || 'not_checked_in',
       date: startOfDayIso(today),
     });
@@ -114,16 +287,127 @@ router.get('/team', roleRequired('manager', 'hr', 'admin'), async (req, res, nex
   try {
     const data = await req.app.locals.store.read();
     const day = dateKey(req.query.date);
-    const employees = data.employees.filter((employee) => (
-      employee.companyId === req.company._id &&
-      employee.status !== 'inactive' &&
-      (req.user.role !== 'manager' || employee._id === req.user._id || employee.managerId === req.user._id)
-    ));
-    const attendances = employees.map((employee) => ({
-      employee: employeeRef(employee),
-      attendance: data.attendances.find((item) => item.employeeId === employee._id && item.dateKey === day) || null,
-    }));
-    return ok(res, { date: day, attendances });
+    const period = PERIOD_PATTERN.test(String(req.query.period || '')) ? String(req.query.period) : currentPeriodFrom(day);
+    return ok(res, {
+      date: day,
+      period,
+      policy: normalizeAttendancePolicy(req.company),
+      attendances: filteredTeamRows(data, req, day, period),
+      filters: appliedFilters(req.query || {}),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/overview', roleRequired('manager', 'hr', 'admin'), async (req, res, next) => {
+  try {
+    const data = await req.app.locals.store.read();
+    const day = dateKey(req.query.date);
+    const period = PERIOD_PATTERN.test(String(req.query.period || '')) ? String(req.query.period) : currentPeriodFrom(day);
+    return ok(res, {
+      date: day,
+      period,
+      policy: normalizeAttendancePolicy(req.company),
+      summaries: filteredTeamRows(data, req, day, period),
+      filters: appliedFilters(req.query || {}),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/by-location', roleRequired('manager', 'hr', 'admin'), async (req, res, next) => {
+  try {
+    const data = await req.app.locals.store.read();
+    const day = dateKey(req.query.date);
+    const period = PERIOD_PATTERN.test(String(req.query.period || '')) ? String(req.query.period) : currentPeriodFrom(day);
+    const rows = filteredTeamRows(data, req, day, period);
+
+    const buckets = new Map();
+    const unassignedRows = [];
+
+    for (const row of rows) {
+      if (!row.areaId) {
+        unassignedRows.push(row);
+        continue;
+      }
+      if (!buckets.has(row.areaId)) {
+        buckets.set(row.areaId, {
+          areaId: row.areaId,
+          areaName: row.areaName || areaNameFor(req.company, row.areaId),
+          address: areaAddressFor(req.company, row.areaId),
+          employees: 0,
+          present: 0,
+          late: 0,
+          rows: [],
+        });
+      }
+      buckets.get(row.areaId).rows.push(row);
+    }
+
+    const countGroup = (group) => {
+      group.employees = group.rows.length;
+      group.present = group.rows.filter((row) => ['present', 'half_day', 'work_from_home'].includes(rowStatus(row))).length;
+      group.late = group.rows.filter((row) => Boolean(row.attendance?.isLate || row.day?.isLate)).length;
+      return group;
+    };
+
+    const groups = [...buckets.values()]
+      .map(countGroup)
+      .sort((a, b) => String(a.areaName || '').localeCompare(String(b.areaName || '')));
+
+    const unassigned = countGroup({
+      areaId: null,
+      areaName: 'Unassigned',
+      address: null,
+      employees: 0,
+      present: 0,
+      late: 0,
+      rows: unassignedRows,
+    });
+
+    return ok(res, {
+      date: day,
+      period,
+      groups,
+      unassigned,
+      filters: appliedFilters(req.query || {}),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/policy', roleRequired('hr', 'admin'), (req, res) => ok(res, {
+  policy: normalizeAttendancePolicy(req.company),
+  leaveTypes: normalizeLeaveTypes(req.company.leaveTypes || []),
+  holidays: normalizeHolidays(req.company.holidays || []),
+}));
+
+router.patch('/policy', roleRequired('admin'), async (req, res, next) => {
+  try {
+    const result = await req.app.locals.store.update((data) => {
+      const company = data.companies.find((item) => item._id === req.company._id);
+      if (!company) return null;
+      const body = req.body || {};
+      company.settings ||= {};
+      company.settings.attendancePolicy = normalizeAttendancePolicy(company, body.attendancePolicy || body.policy || body);
+      if (Object.prototype.hasOwnProperty.call(body, 'leaveTypes')) {
+        company.leaveTypes = normalizeLeaveTypes(body.leaveTypes, company.leaveTypes || []);
+      }
+      if (Object.prototype.hasOwnProperty.call(body, 'holidays')) {
+        company.holidays = normalizeHolidays(body.holidays, company.holidays || []);
+      }
+      company.updatedAt = nowIso();
+      return {
+        policy: normalizeAttendancePolicy(company),
+        leaveTypes: normalizeLeaveTypes(company.leaveTypes || []),
+        holidays: normalizeHolidays(company.holidays || []),
+      };
+    });
+    if (!result) return fail(res, 404, 'Company not found');
+    return ok(res, { ...result, message: 'Attendance policy saved' });
   } catch (error) {
     return next(error);
   }
@@ -142,8 +426,9 @@ router.get('/summary', async (req, res, next) => {
 router.post('/check-in', async (req, res, next) => {
   try {
     const body = req.body || {};
-    const geofenceError = validateGeofence(req.company, body);
-    if (geofenceError) return fail(res, 403, geofenceError);
+    const geofence = validateGeofence(req.company, body) || {};
+    if (geofence.error) return fail(res, 403, geofence.error);
+    const stamp = areaStamp(geofence.area ? geofence : null);
     const result = await req.app.locals.store.update((data) => {
       const checkedInAt = nowIso();
       const today = dateKey(checkedInAt);
@@ -161,6 +446,7 @@ router.post('/check-in', async (req, res, next) => {
           checkOut: null,
           workDuration: 0,
           status: 'present',
+          workMode: 'office',
           isLate: late.isLate,
           lateByMinutes: late.lateByMinutes,
           notes: body.notes || null,
@@ -171,13 +457,22 @@ router.post('/check-in', async (req, res, next) => {
       }
 
       if (!attendance.checkIn) {
+        const previousStatus = attendance.status;
+        const employee = findEmployee(data, req.user._id, req.company._id) || req.user;
         attendance.checkIn = {
           time: checkedInAt,
           location: body.location || null,
           method: body.method || 'manual',
           photo: body.photo || null,
+          areaId: stamp.areaId,
+          areaName: stamp.areaName,
+          distanceMeters: stamp.distanceMeters,
         };
-        attendance.status = 'present';
+        attendance.areaId = stamp.areaId;
+        attendance.areaName = stamp.areaName;
+        attendance.workLocationId = employee?.workLocationId || attendance.workLocationId || null;
+        attendance.status = previousStatus === 'work_from_home' ? 'work_from_home' : 'present';
+        attendance.workMode = attendance.status === 'work_from_home' ? 'work_from_home' : (body.workMode || 'office');
         attendance.isLate = late.isLate;
         attendance.lateByMinutes = late.lateByMinutes;
         attendance.updatedAt = checkedInAt;
@@ -195,9 +490,63 @@ router.post('/check-in', async (req, res, next) => {
   }
 });
 
+router.patch('/status', roleRequired('hr', 'admin'), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const allowedStatuses = ['present', 'half_day', 'absent', 'work_from_home'];
+    if (!body.employeeId || !body.date || !allowedStatuses.includes(body.status)) {
+      return fail(res, 400, 'employeeId, date, and a valid status are required');
+    }
+    const result = await req.app.locals.store.update((data) => {
+      const employee = findEmployee(data, body.employeeId, req.company._id);
+      if (!employee) return null;
+      const key = dateKey(body.date);
+      const now = nowIso();
+      let attendance = data.attendances.find((item) => item.employeeId === employee._id && item.dateKey === key);
+      if (!attendance) {
+        attendance = {
+          _id: newId('att'),
+          companyId: req.company._id,
+          employeeId: employee._id,
+          date: startOfDayIso(key),
+          dateKey: key,
+          checkIn: null,
+          checkOut: null,
+          workDuration: 0,
+          status: body.status,
+          workMode: body.status === 'work_from_home' ? 'work_from_home' : 'office',
+          isLate: false,
+          lateByMinutes: 0,
+          notes: null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        data.attendances.push(attendance);
+      }
+      attendance.status = body.status;
+      attendance.workMode = body.status === 'work_from_home' ? 'work_from_home' : (body.workMode || 'office');
+      attendance.workDuration = Math.max(0, Number(body.workDuration || attendance.workDuration || 0));
+      attendance.notes = body.notes || attendance.notes || null;
+      attendance.source = 'manual_admin';
+      attendance.manualBy = req.user._id;
+      attendance.updatedAt = now;
+      return {
+        attendance,
+        employee: employeeRef(employee),
+        summary: stripDailySummary(buildAttendanceSummary(data, req.company, employee, key.slice(0, 7), req.company.payrollSettings || {})),
+      };
+    });
+    if (!result) return fail(res, 404, 'Employee not found');
+    return ok(res, { ...result, message: 'Attendance status saved' });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.post('/check-out', async (req, res, next) => {
   try {
     const body = req.body || {};
+    const checkOutStamp = areaStamp(resolveNearestArea(req.company, body.location));
     const result = await req.app.locals.store.update((data) => {
       const checkedOutAt = nowIso();
       const today = dateKey(checkedOutAt);
@@ -223,12 +572,23 @@ router.post('/check-out', async (req, res, next) => {
         data.attendances.push(attendance);
       }
 
+      const employee = findEmployee(data, req.user._id, req.company._id) || req.user;
       attendance.checkOut = {
         time: checkedOutAt,
         location: body.location || null,
         method: body.method || 'manual',
         notes: body.notes || null,
+        areaId: checkOutStamp.areaId,
+        areaName: checkOutStamp.areaName,
+        distanceMeters: checkOutStamp.distanceMeters,
       };
+      if (!attendance.areaId && checkOutStamp.areaId) {
+        attendance.areaId = checkOutStamp.areaId;
+        attendance.areaName = checkOutStamp.areaName;
+      }
+      if (!attendance.workLocationId && employee?.workLocationId) {
+        attendance.workLocationId = employee.workLocationId;
+      }
       attendance.workDuration = calculateWorkDuration(attendance.checkIn, attendance.checkOut);
       attendance.updatedAt = checkedOutAt;
       return attendance;

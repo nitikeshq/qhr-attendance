@@ -21,17 +21,17 @@ This matrix maps the minimum feature set visible in the saved screenshots agains
 | Org chart | Partial | Backend org-chart route and web page now exist from reporting-manager data; needs true visual chart layout and drag/edit manager workflow. |
 | Birthdays and anniversaries | Partial | Backend milestone route now exists using date of birth/joining date; needs dashboard/mobile surfacing and notifications. |
 | Face attendance | Missing | No face capture, face match, liveness, enrollment, or verification flow found. |
-| Work modes: WFH/Office/Remote | Partial | WFH requests and attendance method exist; no clean unified work-mode policy/calendar across web/mobile. |
+| Work modes: WFH/Office/Remote | Improved | WFH requests, approval, HR/Admin assignment, automatic WFH attendance rows, and policy-aware payroll tracking now exist; richer calendar UX remains future work. |
 | Geo-fencing | Partial | Attendance areas, location services, and geofence checks exist; check-in/out enforcement and multi-area policy integration are incomplete. |
 | Auto checkout | Partial | Background tasks and attendance checkout exist; reliable server-side auto-checkout rules/jobs are not production-proven. |
-| Late tracking | Partial | Attendance model tracks late fields; policy setup, reports, and corrective workflows are incomplete. |
+| Late tracking | Improved | Attendance policy now includes late-grace setup and team summaries expose late status; richer trend reports remain future work. |
 | Multi-level leave approvals | Partial | Leave approval chain fields and approval routes exist; real multi-level workflow UX/policy setup is incomplete. |
 | Holidays | Partial | Holiday backend and web/mobile pages exist; calendar-grade UX and policy scoping need hardening. |
 | Unified calendar | Partial | Backend unified calendar route and web page now combine holidays, attendance, leave, and WFH. Needs drag/drop workflows and mobile calendar view. |
 | Leave accrual/balance visual | Partial | Leave balance routes exist; visual policy/accrual management is not complete. |
-| Automated payroll | Partial | Salary/payroll APIs exist and runtime blockers were fixed; calculations are simplified and duplicate APIs remain. |
-| Payslip generation | Partial | Mobile now loads real `/salary/my`; backend payslip detail route added. PDF/email generation still missing. |
-| Tax and deductions | Partial | Payroll deductions exist and employee tax declaration model/routes were added; statutory calculation rules and HR review UI remain. |
+| Automated payroll | Implemented | Company policy, employee structures, attendance/WFH/leave loss-of-pay, duplicate-safe scheduled/manual runs, workflow, adjustments, payment status, and reports use one payroll engine. |
+| Payslip generation | Implemented | Published employee payslips include detailed breakdown/YTD data and native mobile PDF generation/share or web print-to-PDF. |
+| Tax and deductions | Implemented locally | Editable PF/ESI/PT/LWF rules and employee-reviewed monthly TDS inputs are calculated and snapshotted; production statutory filing still requires external credentials/formats. |
 | Investments / IT declarations | Partial | Tax declaration model/API now supports declared items/proofs; needs mobile/web declaration UI and HR verification flow. |
 | Recruitment and ATS | Partial | Job opening/candidate models, routes, stats, and web ATS page added; needs interviews, offers, career page, and candidate actions. |
 | Advanced reports and analytics | Partial | Backend overview/headcount reports and web reports page added; no report builder, exports, or scheduled reports yet. |
@@ -67,13 +67,13 @@ This matrix maps the minimum feature set visible in the saved screenshots agains
 | Companies | Exists | Same-company check missing on company-by-id; registration email delivery missing; public company list leaks codes. |
 | Employees | Improved | Better tenant scoping added; still needs full super-admin policy review. |
 | Employee management | Risky | Runtime import error; overlaps `/employees`; treats string designation like ObjectId. |
-| Attendance | Exists | Geofence status logged but not enforced; managers can see broad company data. |
+| Attendance | Improved | Geofence enforcement, manager scoping, policy-aware team summaries, and HR/Admin manual status correction are implemented; advanced device/biometric proofing remains future work. |
 | Attendance areas | Exists | Not integrated into check-in/out; some manual validation edge cases. |
 | Location | Exists | Weak batch limits; manager location access too broad. |
 | Leave | Exists | Cross-tenant risk on ID-based privileged reads/approvals; duplicates leave type logic. |
-| WFH | Exists | Fetch-by-id before scoping; super-admin assumptions can break. |
+| WFH | Improved | Request approval, scoped review, HR/Admin assignment, and attendance/payroll linkage are implemented; offline/mobile polish remains future work. |
 | Grievances | Exists | ID-based mutation scoping needs tightening. |
-| Payroll/salary | Risky | Duplicate APIs; runtime import issues; simplified math; tenant checks missing in places. |
+| Payroll/salary | Covered | One tenant-scoped payroll router and calculation engine now cover policy, structures, runs, approvals, publishing, payment, and employee access. |
 | Projects/tasks | Exists | Authorization too broad; weak validation; mobile route gaps. |
 | Desktop activity | Exists | Privacy/consent/rate-limit gaps; detail route tenant risk. |
 | Health | Exists | Partial validation; no company policy toggle enforcement. |
@@ -96,7 +96,7 @@ Current backend validation baseline: 42 Jest suites / 396 tests pass on Node 24,
 | Approvals | Partly wired | Detail uses missing service methods. |
 | Tasks/sales visits | Partly wired | Missing `/projects` and `/edit-task`; upload/photo flow incomplete. |
 | Grievances | Wired | Attachments/offline drafts missing. |
-| Payslip | Improved | Mobile now loads `/salary/my`; PDF/email and tax declaration UI remain. |
+| Payslip | Implemented | Mobile loads published payroll records, expands the full breakdown, and creates a shareable PDF; web offers print/save PDF. |
 | Health/activity | Partial | Activity now loads desktop activity backend and shows empty/error states; health remains partly local. |
 | Admin settings | Mixed | Missing leave type form; geofence endpoints drift. |
 | Background/offline sync | Risky | Payloads do not match current backend; reconciliation is weak. |

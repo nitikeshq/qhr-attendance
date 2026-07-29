@@ -3,6 +3,7 @@ const express = require('express');
 const { authRequired, roleRequired } = require('../middleware/auth');
 const { created, fail, ok } = require('../utils/responses');
 const {
+  dateKey,
   employeeRef,
   findEmployee,
   newId,
@@ -10,6 +11,7 @@ const {
   paginate,
   startOfDayIso,
 } = require('../utils/records');
+const { datesBetween } = require('../utils/attendancePolicy');
 
 const router = express.Router();
 
@@ -30,6 +32,43 @@ function canReviewWfh(data, req, request) {
   if (req.user.role !== 'manager') return false;
   const employee = findEmployee(data, request.employeeId, req.company._id);
   return employee?.managerId === req.user._id;
+}
+
+function syncApprovedWfhAttendance(data, request, actorId) {
+  const start = new Date(startOfDayIso(request.startDate || request.date));
+  const end = new Date(startOfDayIso(request.endDate || request.startDate || request.date));
+  const now = nowIso();
+  for (const date of datesBetween(start, end)) {
+    const key = dateKey(date);
+    let attendance = data.attendances.find((item) => item.employeeId === request.employeeId && item.dateKey === key);
+    if (!attendance) {
+      attendance = {
+        _id: newId('att'),
+        companyId: request.companyId,
+        employeeId: request.employeeId,
+        date: startOfDayIso(key),
+        dateKey: key,
+        checkIn: null,
+        checkOut: null,
+        workDuration: 0,
+        status: 'work_from_home',
+        workMode: 'work_from_home',
+        isLate: false,
+        lateByMinutes: 0,
+        notes: request.reason || 'Work from home',
+        createdAt: now,
+        updatedAt: now,
+      };
+      data.attendances.push(attendance);
+    }
+    attendance.status = 'work_from_home';
+    attendance.workMode = 'work_from_home';
+    attendance.source = request.source || 'wfh';
+    attendance.wfhRequestId = request._id;
+    attendance.manualBy = actorId || attendance.manualBy || null;
+    attendance.notes = attendance.notes || request.reason || null;
+    attendance.updatedAt = now;
+  }
 }
 
 router.post('/', async (req, res, next) => {
@@ -116,6 +155,50 @@ router.get('/stats', roleRequired('manager', 'hr', 'admin'), async (req, res, ne
   }
 });
 
+router.post('/assign', roleRequired('hr', 'admin'), async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    if (!body.employeeId || (!body.date && !body.startDate)) {
+      return fail(res, 400, 'employeeId and date are required');
+    }
+    const result = await req.app.locals.store.update((data) => {
+      const employee = findEmployee(data, body.employeeId, req.company._id);
+      if (!employee) return null;
+      const now = nowIso();
+      const request = {
+        _id: newId('wfh'),
+        companyId: req.company._id,
+        employeeId: employee._id,
+        date: startOfDayIso(body.date || body.startDate),
+        startDate: startOfDayIso(body.startDate || body.date),
+        endDate: startOfDayIso(body.endDate || body.date || body.startDate),
+        reason: body.reason || 'Assigned by admin',
+        emergencyContact: body.emergencyContact || null,
+        workFromLocation: body.workFromLocation || body.location || null,
+        status: 'approved',
+        source: 'admin_assignment',
+        reviewComments: body.reviewComments || 'Assigned by admin',
+        reviewedBy: req.user._id,
+        reviewedAt: now,
+        createdBy: req.user._id,
+        createdAt: now,
+        updatedAt: now,
+      };
+      data.wfhRequests.push(request);
+      syncApprovedWfhAttendance(data, request, req.user._id);
+      return serializeWfh(data, request);
+    });
+    if (!result) return fail(res, 404, 'Employee not found');
+    return created(res, {
+      wfhRequest: result,
+      request: result,
+      message: 'WFH assignment saved and attendance updated',
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     const data = await req.app.locals.store.read();
@@ -142,6 +225,7 @@ router.patch('/:id/review', roleRequired('manager', 'hr', 'admin'), async (req, 
       request.reviewedBy = req.user._id;
       request.reviewedAt = nowIso();
       request.updatedAt = nowIso();
+      if (request.status === 'approved') syncApprovedWfhAttendance(data, request, req.user._id);
       return { request: serializeWfh(data, request) };
     });
 

@@ -3,6 +3,8 @@ const express = require('express');
 const { authRequired, roleRequired } = require('../middleware/auth');
 const { hashSecret } = require('../utils/passwords');
 const { created, fail, ok } = require('../utils/responses');
+
+const trimmedText = (value) => String(value === undefined || value === null ? '' : value).trim();
 const {
   newId,
   normalizeCode,
@@ -10,15 +12,20 @@ const {
   publicCompany,
   publicEmployee,
 } = require('../utils/records');
+const {
+  normalizeAttendancePolicy,
+  normalizeHolidays,
+  normalizeLeaveTypes,
+} = require('../utils/attendancePolicy');
 
 const router = express.Router();
 
 function defaultLeaveTypes() {
   return [
-    { code: 'casual', name: 'Casual Leave', annualAllowance: 12, color: '#6366F1' },
-    { code: 'sick', name: 'Sick Leave', annualAllowance: 10, color: '#10B981' },
-    { code: 'earned', name: 'Earned Leave', annualAllowance: 18, color: '#F59E0B' },
-    { code: 'unpaid', name: 'Unpaid Leave', annualAllowance: 0, color: '#6B7280' },
+    { code: 'casual', name: 'Casual Leave', annualAllowance: 12, color: '#6366F1', paid: true, payrollTreatment: 'paid' },
+    { code: 'sick', name: 'Sick Leave', annualAllowance: 10, color: '#10B981', paid: true, payrollTreatment: 'paid' },
+    { code: 'earned', name: 'Earned Leave', annualAllowance: 18, color: '#F59E0B', paid: true, payrollTreatment: 'paid' },
+    { code: 'unpaid', name: 'Unpaid Leave', annualAllowance: 0, color: '#6B7280', paid: false, payrollTreatment: 'unpaid' },
   ];
 }
 
@@ -65,6 +72,23 @@ router.post('/register', async (req, res, next) => {
       const companyId = newId('company');
       const adminId = newId('emp');
       const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
+      // Everything the registration wizard collected is written into the company
+      // profile so the onboarding checklist starts prefilled instead of blank.
+      const registeredAddress = trimmedText(body.registeredAddress || body.addressLine || body.address);
+      const registrationProfile = {
+        registeredAddress,
+        city: trimmedText(body.city),
+        state: trimmedText(body.state),
+        pincode: trimmedText(body.pincode || body.postalCode),
+        industry: trimmedText(body.industry),
+        foundedOn: trimmedText(body.foundedOn),
+        employeeCountRange: trimmedText(body.employeeCount),
+      };
+
+      // A new tenant lands on the free plan, so its included seats come from that
+      // plan rather than being hard-coded. Super Admin can change the plan later.
+      const freePlan = (data.subscriptionPlans || []).find((plan) => plan.status === 'active' && Number(plan.pricePerUser) === 0);
+      const freePlanSeats = Math.max(1, Math.floor(Number(freePlan?.includedSeats) || 1));
       const company = {
         _id: companyId,
         name: body.name,
@@ -77,8 +101,8 @@ router.post('/register', async (req, res, next) => {
         status: 'pending',
         verificationCode,
         subscription: {
-          plan: 'Starter',
-          pricePerUser: 19,
+          plan: freePlan?.name || 'Free',
+          pricePerUser: Math.max(0, Number(freePlan?.pricePerUser) || 0),
           annualDiscountPercent: 0,
           billingCycle: 'monthly',
           billingMode: 'manual_online',
@@ -90,8 +114,8 @@ router.post('/register', async (req, res, next) => {
           nextRenewalAt: null,
           graceEndsAt: null,
           pausedAt: null,
-          freeAdminSeats: 1,
-          freeAdminEmployeeId: adminId,
+          includedSeats: freePlanSeats,
+          billingContactEmployeeId: adminId,
           paidSeats: 0,
         },
         branding: {
@@ -108,7 +132,32 @@ router.post('/register', async (req, res, next) => {
           leaveApproval: true,
           desktopMonitoring: true,
           requirePhotoAttendance: false,
+          attendancePolicy: normalizeAttendancePolicy({ payrollSettings: body.payrollSettings || {} }, body.attendancePolicy || {}),
         },
+        profile: registrationProfile,
+        // The registered address is also the natural first work location, so the
+        // onboarding location step and the payslip address start populated.
+        workLocations: registeredAddress
+          ? [{
+            _id: newId('wloc'),
+            name: 'Head office',
+            code: normalizeCode(`${code}HQ`.slice(0, 8)),
+            addressLine: registeredAddress,
+            city: registrationProfile.city,
+            state: registrationProfile.state,
+            pincode: registrationProfile.pincode,
+            timezone: body.timezone || 'Asia/Kolkata',
+            isPayrollAddress: true,
+            pfEstablishmentCode: '',
+            esiEmployerCode: '',
+            status: 'active',
+            createdAt: now,
+            updatedAt: now,
+          }]
+          : [],
+        departments: [],
+        designations: [],
+        calendarEvents: [],
         attendanceAreas: [],
         leaveTypes: defaultLeaveTypes(),
         holidays: [],
@@ -205,8 +254,18 @@ router.patch('/settings', authRequired, roleRequired('hr', 'admin'), async (req,
     const allowed = ['gpsTracking', 'autoCheckIn', 'leaveApproval', 'desktopMonitoring', 'requirePhotoAttendance', 'officeStart', 'officeEnd', 'timezone'];
     const company = await req.app.locals.store.update((data) => {
       const item = data.companies.find((entry) => entry._id === req.company._id);
+      item.settings ||= {};
       for (const key of allowed) {
         if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) item.settings[key] = req.body[key];
+      }
+      if (Object.prototype.hasOwnProperty.call(req.body || {}, 'attendancePolicy')) {
+        item.settings.attendancePolicy = normalizeAttendancePolicy(item, req.body.attendancePolicy);
+      }
+      if (Object.prototype.hasOwnProperty.call(req.body || {}, 'leaveTypes')) {
+        item.leaveTypes = normalizeLeaveTypes(req.body.leaveTypes, item.leaveTypes || []);
+      }
+      if (Object.prototype.hasOwnProperty.call(req.body || {}, 'holidays')) {
+        item.holidays = normalizeHolidays(req.body.holidays, item.holidays || []);
       }
       item.updatedAt = nowIso();
       return item;

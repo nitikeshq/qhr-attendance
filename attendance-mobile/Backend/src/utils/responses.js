@@ -13,6 +13,7 @@ function fail(res, status, message, details) {
   return res.status(status).json({
     success: false,
     message,
+    ...(res.locals.requestId ? { requestId: res.locals.requestId } : {}),
     ...(details ? { details } : {}),
   });
 }

@@ -2,114 +2,406 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Neumorphism Design System - Warm Cream & Amber */
+/* ==========================================================================
+   QHR enterprise design system
+   Flat surfaces, one accent, restrained elevation, dark navigation rail.
+   Legacy `neu-*` and `gradient-button` class names are kept as aliases so no
+   JSX had to be rewritten; their implementation here is fully flat.
+   ========================================================================== */
 :root {
-  --neu-bg: #F5F0E8;
-  --neu-bg-alt: #EBE4D8;
-  --neu-shadow-dark: #D4CEC2;
-  --neu-shadow-light: #FFFFFF;
-  --primary: #E07B39;
-  --primary-light: #F09856;
-  --text: #3D3229;
-  --text-secondary: #5C4F3D;
-  --accent: #D4A853;
-  --secondary: #2D9B83;
+  /* Canvas and surfaces */
+  --canvas: #f1f4f8;
+  --surface: #ffffff;
+  --surface-subtle: #f8fafc;
+  --surface-hover: #f1f5f9;
+  --surface-active: #e8edf3;
+
+  /* Lines */
+  --border: #e3e8ef;
+  --border-strong: #cfd7e3;
+  --border-input: #b9c3d0;
+
+  /* Text */
+  --text: #131a26;
+  --text-secondary: #5a6675;
+  --text-muted: #8593a4;
+
+  /* Brand */
+  --primary: #0f6cbd;
+  --primary-hover: #115ea3;
+  --primary-active: #0d4d85;
+  --primary-tint: #eff6fc;
+  --primary-tint-strong: #dceafa;
+
+  /* Semantic */
+  --success: #107c41;
+  --warning: #9a6700;
+  --danger: #c4314b;
+
+  /* Dark navigation rail. A distinct nav surface is what separates an
+     application shell from a page of white cards on grey. */
+  --nav-bg: #111827;
+  --nav-bg-raised: #1a2231;
+  --nav-hover: #212b3b;
+  --nav-active: #1c2b40;
+  --nav-border: #232d3d;
+  --nav-text: #a9b4c3;
+  --nav-text-strong: #ffffff;
+  --nav-muted: #6f7d8f;
+  --nav-accent: #55a6ea;
+
+  /* Elevation: three steps only. Flat by default, lift only when floating. */
+  --shadow-sm: 0 1px 2px rgba(19, 26, 38, .05);
+  --shadow-md: 0 2px 4px rgba(19, 26, 38, .06), 0 1px 2px rgba(19, 26, 38, .04);
+  --shadow-lg: 0 12px 28px -8px rgba(19, 26, 38, .18), 0 4px 10px -4px rgba(19, 26, 38, .10);
+
+  --radius: 8px;
+  --radius-sm: 6px;
+  --ease: cubic-bezier(.2, 0, .2, 1);
+  --dur: 130ms;
+
+  /* Legacy aliases */
+  --neu-bg: var(--canvas);
+  --neu-bg-alt: var(--surface);
+  --neu-shadow-dark: var(--border-strong);
+  --neu-shadow-light: #ffffff;
+  --primary-light: #2b88d8;
+  --accent: var(--primary);
+  --secondary: var(--success);
+}
+
+* { box-sizing: border-box; }
+
+html {
+  min-width: 320px;
+  font-size: 16px;
+  line-height: 1.5;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background-color: var(--neu-bg);
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  margin: 0;
+  min-width: 320px;
+  background: var(--canvas);
+  color: var(--text);
+  font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+  font-size: .9375rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: break-word;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Neumorphic Components */
+button, input, select, textarea { font: inherit; color: inherit; }
+button { touch-action: manipulation; }
+
+h1, h2, h3, h4 {
+  color: var(--text);
+  line-height: 1.25;
+  letter-spacing: -.016em;
+  text-wrap: balance;
+  font-weight: 650;
+}
+p, li, td, th, label, input, select, textarea, button { line-height: 1.45; }
+small { font-size: .75rem; line-height: 1.5; }
+::selection { background: var(--primary-tint-strong); }
+
+/* ------------------------------ surfaces ------------------------------ */
 .neu-card {
-  background: var(--neu-bg);
-  border-radius: 16px;
-  box-shadow: 5px 5px 10px var(--neu-shadow-dark), -5px -5px 10px var(--neu-shadow-light);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
 }
+.neu-card-sm { border: 1px solid var(--border); box-shadow: none; }
 
-.neu-card-sm {
-  box-shadow: 3px 3px 6px var(--neu-shadow-dark), -3px -3px 6px var(--neu-shadow-light);
-}
-
+/* Recessed panel for supporting content and metric tiles. */
 .neu-inset {
-  background: var(--neu-bg-alt);
-  box-shadow: inset 3px 3px 6px var(--neu-shadow-dark), inset -3px -3px 6px var(--neu-shadow-light);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: none;
 }
 
+.neu-card, .neu-inset, main, section { min-width: 0; }
+
+/* Card header band: separates the title row from the body the way an
+   enterprise console does, instead of floating text above content. */
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .875rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-subtle);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.card-body { padding: 1rem; }
+@media (min-width: 640px) {
+  .card-head { padding: .875rem 1.25rem; }
+  .card-body { padding: 1.25rem; }
+}
+
+/* ------------------------------ controls ------------------------------ */
 .neu-button {
-  background: var(--neu-bg);
-  border-radius: 12px;
-  box-shadow: 3px 3px 6px var(--neu-shadow-dark), -3px -3px 6px var(--neu-shadow-light);
-  transition: all 0.2s ease;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-weight: 600;
+  min-height: 36px;
+  box-shadow: var(--shadow-sm);
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease),
+              color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
+.neu-button:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--border-input); }
+.neu-button:active:not(:disabled) { background: var(--surface-active); box-shadow: none; }
 
-.neu-button:hover {
-  box-shadow: 5px 5px 10px var(--neu-shadow-dark), -5px -5px 10px var(--neu-shadow-light);
+.gradient-button {
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  min-height: 36px;
+  box-shadow: var(--shadow-sm);
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease),
+              box-shadow var(--dur) var(--ease);
 }
+.gradient-button:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); transform: none; }
+.gradient-button:active:not(:disabled) { background: var(--primary-active); border-color: var(--primary-active); box-shadow: none; }
 
-.neu-button:active {
-  box-shadow: inset 2px 2px 4px var(--neu-shadow-dark), inset -2px -2px 4px var(--neu-shadow-light);
+.neu-button:disabled, .gradient-button:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
+
+/* Quiet button for toolbars, where a bordered button per action is too loud. */
+.ghost-button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-weight: 600;
+  min-height: 36px;
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }
+.ghost-button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text); }
+.ghost-button:disabled { cursor: not-allowed; opacity: .45; }
 
 .neu-input {
-  background: var(--neu-bg-alt);
-  border: 1px solid #CBD5E0;
-  border-radius: 12px;
-  box-shadow: inset 2px 2px 4px var(--neu-shadow-dark), inset -2px -2px 4px var(--neu-shadow-light);
+  background: var(--surface);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  min-height: 36px;
+  line-height: 1.4;
+  box-shadow: none;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
-
+.neu-input:hover:not(:disabled):not(:focus) { border-color: #93a1b3; }
 .neu-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: inset 2px 2px 4px var(--neu-shadow-dark), inset -2px -2px 4px var(--neu-shadow-light), 0 0 0 3px rgba(224, 123, 57, 0.15);
+  box-shadow: 0 0 0 3px rgba(15, 108, 189, .16);
+}
+.neu-input::placeholder { color: var(--text-muted); }
+.neu-input:disabled { background: var(--surface-subtle); color: var(--text-muted); cursor: not-allowed; }
+
+:where(button, a, [role="tab"], summary):focus-visible,
+.neu-input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
-/* Gradient Button - Warm Amber */
-.gradient-button {
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
-  color: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(224, 123, 57, 0.35);
-  transition: all 0.2s ease;
+/* ------------------------------ app shell ------------------------------ */
+/* Sticky utility bar above the page title. Keeps refresh, notifications and
+   the account menu reachable no matter how far the page scrolls. */
+.app-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-height: 52px;
+  padding: .5rem .75rem;
+  background: rgba(255, 255, 255, .92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
 }
+@media (min-width: 640px) { .app-bar { padding: .5rem 1.25rem; } }
 
-.gradient-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(224, 123, 57, 0.45);
+/* Title band directly under the app bar. */
+.page-band {
+  padding: 1rem .75rem .25rem;
 }
+@media (min-width: 640px) { .page-band { padding: 1.25rem 1.25rem .25rem; } }
 
-/* Sidebar */
+.page-content { padding: 1rem .75rem 2.5rem; }
+@media (min-width: 640px) { .page-content { padding: 1rem 1.25rem 3rem; } }
+
+/* Caps reading width on ultra-wide monitors so tables and forms stay legible. */
+.shell-width { width: 100%; max-width: 1680px; margin-inline: auto; }
+
+/* ------------------------------ navigation ------------------------------ */
 .neu-sidebar {
-  background: var(--neu-bg);
-  box-shadow: 5px 0 15px rgba(0, 0, 0, 0.05);
+  background: var(--nav-bg);
+  border-right: 1px solid var(--nav-border);
+  box-shadow: none;
+  color: var(--nav-text);
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
+.nav-brand-name { color: var(--nav-text-strong); }
+.nav-brand-meta { color: var(--nav-muted); }
+
+/* Sidebar items: quiet by default, tinted with an accent bar when active. */
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  width: 100%;
+  padding: .5rem .625rem;
+  border-radius: var(--radius-sm);
+  color: var(--nav-text);
+  font-size: .875rem;
+  font-weight: 550;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.nav-item:hover { background: var(--nav-hover); color: var(--nav-text-strong); }
+.nav-item[aria-current="page"] { background: var(--nav-active); color: var(--nav-text-strong); font-weight: 650; }
+.nav-item[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: -.25rem;
+  top: 50%;
+  translate: 0 -50%;
+  height: 1.125rem;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--nav-accent);
+}
+.nav-item svg { flex: 0 0 auto; opacity: .7; }
+.nav-item:hover svg { opacity: .95; }
+.nav-item[aria-current="page"] svg { opacity: 1; color: var(--nav-accent); }
+.nav-item:focus-visible { outline: 2px solid var(--nav-accent); outline-offset: 1px; }
+
+.nav-item-danger { color: #f0a3ad; }
+.nav-item-danger:hover { background: rgba(196, 49, 75, .18); color: #ffc9d0; }
+
+.nav-group-label {
+  padding: 0 .625rem .25rem;
+  font-size: .6875rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--nav-muted);
 }
 
-::-webkit-scrollbar-track {
-  background: var(--neu-bg-alt);
-  border-radius: 4px;
+.nav-divider { height: 1px; background: var(--nav-border); }
+
+/* Compact icon button that reads correctly on the dark rail. */
+.nav-icon-button {
+  border-radius: var(--radius-sm);
+  color: var(--nav-text);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.nav-icon-button:hover { background: var(--nav-hover); color: var(--nav-text-strong); }
+
+/* ------------------------------ step rails ------------------------------ */
+/* Shared by the onboarding wizard and any other multi-step page. */
+.rail-item {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: .625rem;
+  border-radius: var(--radius-sm);
+  padding: .5rem .625rem;
+  text-align: left;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.rail-item:hover { background: var(--surface-hover); color: var(--text); }
+.rail-item[aria-current="step"] { background: var(--primary-tint); color: var(--primary-active); }
+.rail-item[aria-current="step"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  translate: 0 -50%;
+  height: 1.25rem;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--primary);
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--neu-shadow-dark);
-  border-radius: 4px;
+/* ------------------------------ tables ------------------------------ */
+table { font-variant-numeric: tabular-nums; border-collapse: collapse; }
+thead th {
+  font-size: .6875rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+}
+tbody tr { transition: background-color var(--dur) var(--ease); }
+
+/* ------------------------------ chips ------------------------------ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  border-radius: 999px;
+  padding: .125rem .5rem;
+  font-size: .6875rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  white-space: nowrap;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #A0AEC0;
+/* ------------------------------ scrollbars ------------------------------ */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c3ccd8; border: 2px solid transparent; background-clip: content-box; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #a3aebd; background-clip: content-box; }
+
+/* Dark rail needs its own thumb or it disappears against the navy. */
+.neu-sidebar ::-webkit-scrollbar-thumb { background: #384457; background-clip: content-box; }
+.neu-sidebar ::-webkit-scrollbar-thumb:hover { background: #4a586e; background-clip: content-box; }
+
+/* ------------------------------ motion ------------------------------ */
+@keyframes qhr-fade-in { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+.animate-in { animation: qhr-fade-in 160ms var(--ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
+/* Opaque compatibility utilities for legacy translucent class names. */
+.bg-white\/35 { background-color: var(--surface); }
+.bg-white\/40, .bg-white\/50 { background-color: var(--surface-subtle); }
+
+/* ------------------------------ responsive ------------------------------ */
 @media (max-width: 639px) {
-  .neu-card {
-    box-shadow: 3px 3px 7px var(--neu-shadow-dark), -3px -3px 7px var(--neu-shadow-light);
-  }
-
-  .neu-button {
-    box-shadow: 2px 2px 5px var(--neu-shadow-dark), -2px -2px 5px var(--neu-shadow-light);
-  }
+  .neu-button, .gradient-button, .ghost-button { min-height: 44px; }
+  input.neu-input, select.neu-input, textarea.neu-input { font-size: 16px; min-height: 44px; }
+  h1 { letter-spacing: -.02em; }
 }
+@media (min-width: 1440px) { body { font-size: 1rem; } }

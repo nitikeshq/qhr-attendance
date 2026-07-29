@@ -17,15 +17,37 @@ function ensureBillingCollections(data) {
   data.billingInvoices ||= [];
   data.billingPayments ||= [];
   data.billingNotifications ||= [];
-  data.paymentGateways ||= [
+  const gatewayDefaults = [
     { code: 'cashfree', name: 'Cashfree', enabled: false, isDefault: true, mode: 'test' },
     { code: 'payu', name: 'PayU', enabled: false, isDefault: false, mode: 'test' },
   ];
+  data.paymentGateways ||= [];
+  gatewayDefaults.forEach((defaults) => {
+    const gateway = data.paymentGateways.find((item) => item.code === defaults.code);
+    if (!gateway) data.paymentGateways.push({ ...defaults });
+    else {
+      gateway.name ||= defaults.name;
+      gateway.enabled = Boolean(gateway.enabled);
+      gateway.isDefault = Boolean(gateway.isDefault);
+      if (!['test', 'live'].includes(gateway.mode)) gateway.mode = 'test';
+    }
+  });
   data.subscriptionPlans ||= [];
-  data.subscriptionPlans.forEach((plan) => {
-    plan.freeAdminSeats ??= 1;
+  data.subscriptionPlans.forEach((plan, index) => {
+    // `includedSeats` replaces the old always-on free admin seat. A paid plan
+    // includes nothing, so buying 10 seats means exactly 10 usable accounts.
+    // A free plan is expressed as includedSeats > 0 with pricePerUser 0.
+    plan.includedSeats ??= Number.isFinite(Number(plan.freeAdminSeats)) ? Number(plan.freeAdminSeats) : 0;
+    plan.includedSeats = Math.max(0, Math.floor(Number(plan.includedSeats) || 0));
+    delete plan.freeAdminSeats;
     plan.annualDiscountPercent ??= 0;
     plan.status ||= 'active';
+    plan.code ||= String(plan.name || `plan-${index + 1}`).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    plan.description ??= '';
+    plan.features = Array.isArray(plan.features) ? plan.features.map((item) => String(item)) : [];
+    plan.sortOrder ??= index;
+    plan.highlighted = plan.highlighted === true;
+    plan.isFree = plan.pricePerUser === 0;
   });
   if ((data.meta.billingSchemaVersion || 0) < 2) {
     const legacyStarter = data.subscriptionPlans.find((plan) => plan._id === 'plan_starter' && plan.pricePerUser === 0 && plan.userLimit === 5);
@@ -52,6 +74,21 @@ function ensureBillingCollections(data) {
     });
     data.meta.billingSchemaVersion = 2;
   }
+  if ((data.meta.billingSchemaVersion || 0) < 3) {
+    // Seat model change: the bundled free admin seat is gone. Existing tenants
+    // must not lose capacity, so the old free seat is folded into paidSeats and
+    // includedSeats starts at zero. Total allowance is therefore unchanged.
+    (data.companies || []).forEach((company) => {
+      const subscription = company.subscription ||= {};
+      const legacyFree = Math.max(0, Number(subscription.freeAdminSeats) || 0);
+      subscription.paidSeats = Math.max(0, (Number(subscription.paidSeats) || 0) + legacyFree);
+      subscription.includedSeats = 0;
+      subscription.billingContactEmployeeId ||= subscription.freeAdminEmployeeId || null;
+      delete subscription.freeAdminSeats;
+      delete subscription.freeAdminEmployeeId;
+    });
+    data.meta.billingSchemaVersion = 3;
+  }
 }
 
 function activeCompanyEmployees(data, companyId) {
@@ -62,9 +99,12 @@ function normalizedSubscription(company, data) {
   const source = company.subscription || {};
   const mode = normalizeBillingMode(source.billingMode);
   const activeUsers = data ? activeCompanyEmployees(data, company._id).length : 0;
-  const freeAdminSeats = Math.max(1, Number(source.freeAdminSeats) || 1);
-  const inferredPaidSeats = Math.max(0, activeUsers - freeAdminSeats);
+  // Seats included by the plan itself. Zero on every paid plan, so purchasing N
+  // seats yields exactly N usable accounts. A free tier sets this above zero.
+  const includedSeats = Math.max(0, Math.floor(Number(source.includedSeats) || 0));
+  const inferredPaidSeats = Math.max(0, activeUsers - includedSeats);
   const paidSeats = Math.max(0, Number.isFinite(Number(source.paidSeats)) ? Number(source.paidSeats) : inferredPaidSeats);
+  const totalSeats = includedSeats + paidSeats;
   const billingCycle = BILLING_CYCLES.includes(source.billingCycle) ? source.billingCycle : 'monthly';
   const pricePerUser = money(source.pricePerUser ?? 19);
   const annualDiscountPercent = Math.min(100, Math.max(0, Number(source.annualDiscountPercent) || 0));
@@ -87,9 +127,13 @@ function normalizedSubscription(company, data) {
     nextRenewalAt: source.nextRenewalAt || source.currentPeriodEnd || null,
     graceEndsAt: source.graceEndsAt || null,
     pausedAt: source.pausedAt || null,
-    freeAdminSeats,
-    freeAdminEmployeeId: source.freeAdminEmployeeId || null,
+    includedSeats,
+    // Kept so a paused tenant still has someone who can sign in and settle the
+    // bill. This grants access recovery, not a free seat.
+    billingContactEmployeeId: source.billingContactEmployeeId || source.freeAdminEmployeeId || null,
     paidSeats,
+    totalSeats,
+    seatsRemaining: Math.max(0, totalSeats - activeUsers),
     activeUsers,
     renewalAmount,
     customRenewalAmount: source.customRenewalAmount ?? null,
@@ -238,6 +282,41 @@ function applyPaidInvoiceToSubscription(data, invoice, paidAt = new Date()) {
   const company = data.companies.find((item) => item._id === invoice.companyId);
   if (!company) return false;
   const subscription = normalizedSubscription(company, data);
+  if (invoice.kind === 'subscription_purchase' && invoice.subscriptionChange) {
+    const paidDate = new Date(paidAt);
+    const periodStart = Number.isNaN(paidDate.getTime()) ? new Date() : paidDate;
+    const next = invoice.subscriptionChange;
+    const periodEnd = addBillingPeriod(periodStart, next.billingCycle);
+    company.subscription = {
+      ...company.subscription,
+      plan: next.plan,
+      pricePerUser: money(next.pricePerUser),
+      annualDiscountPercent: Number(next.annualDiscountPercent) || 0,
+      billingCycle: next.billingCycle,
+      paymentGateway: subscription.billingMode === 'automatic' ? next.paymentGateway || subscription.paymentGateway : null,
+      paidSeats: Number(next.paidSeats),
+      includedSeats: Math.max(0, Math.floor(Number(subscription.includedSeats) || 0)),
+      customRenewalAmount: null,
+      status: 'active',
+      currentPeriodStart: periodStart.toISOString(),
+      currentPeriodEnd: periodEnd.toISOString(),
+      nextRenewalAt: periodEnd.toISOString(),
+      graceEndsAt: null,
+      pausedAt: null,
+    };
+    invoice.periodStart = periodStart.toISOString();
+    invoice.periodEnd = periodEnd.toISOString();
+    invoice.updatedAt = nowIso();
+    company.updatedAt = nowIso();
+    queueBillingEmail(data, company, 'subscription_purchase_success', periodStart, {
+      subject: 'QHR subscription payment received',
+      amount: invoice.total,
+      plan: next.plan,
+      paidSeats: next.paidSeats,
+      nextRenewalAt: periodEnd.toISOString(),
+    });
+    return true;
+  }
   if (subscription.billingMode !== 'automatic') return false;
   if (subscription.status === 'paused' && invoice.kind !== 'reactivation') return false;
   if (!['renewal', 'reactivation'].includes(invoice.kind)) return false;
@@ -410,7 +489,7 @@ function runBillingCycle(data, at = new Date()) {
         subject: 'QHR paid-user access has been paused',
         amount: renewalInvoice.total,
         pausedAt: now.toISOString(),
-        freeAdminAccess: true,
+        billingContactAccess: true,
       })) stats.notificationsQueued += 1;
     }
     company.updatedAt = now.toISOString();

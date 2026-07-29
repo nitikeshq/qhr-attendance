@@ -1,7 +1,7 @@
 {
   "name": "qhr-admin-panel",
   "version": "1.0.0",
-  "description": "QHR Admin Panel with Neumorphism Design",
+  "description": "QHR Admin Panel with Enterprise Flat Design",
   "private": true,
   "engines": {
     "node": ">=20.19.0"

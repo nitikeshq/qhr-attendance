@@ -1,441 +1,187 @@
-# QHR Attendance System - Complete Tech Stack & Libraries
+# QHR Attendance — Technology and Reusable Feature List
 
-## 🎨 Design Systems Used
+Verified against the workspace package manifests on 2026-07-20. Versions below describe this application; they are not generic recommendations.
 
-### 1. **Neumorphism Design** (Admin Panel)
-- Soft UI with 3D raised/inset effects
-- Warm cream & amber color palette
-- Tactile, modern appearance
+## Applications
 
-### 2. **Modern Glassmorphism/Material Design** (Landing Page & Mobile)
-- Clean, flat design with subtle shadows
-- Professional blue & cyan colors
-- Corporate B2B aesthetic
+| Application | Location | Runtime / framework | Purpose |
+|---|---|---|---|
+| Backend API | `attendance-mobile/Backend` | Node.js 20+, Express 4.21 | Tenant API, attendance, payroll, reimbursements, billing |
+| Admin panel | `admin-panel` | Next.js 16.2.10, React 18, TypeScript | Company HR/admin operations |
+| Employee portal | `attendance-mobile` | Expo 54, React 19.1, React Native 0.81 | Mobile and web employee self-service |
+| Landing page | `landing-page` | Next.js 16.2.10, React 18, TypeScript | Product marketing and lead capture |
+| Desktop tracker | `desktop-app` | Electron 43.1 | Desktop activity and attendance agent |
 
----
+## Backend API
 
-## 📦 Backend (Node.js API)
+Runtime dependencies:
 
-### Framework & Core
 ```json
 {
   "express": "^4.21.2",
-  "node": ">=20"
-}
-```
-
-### Security & Middleware
-```json
-{
   "cors": "^2.8.5",
+  "dotenv": "^16.4.7",
   "helmet": "^8.0.0",
   "morgan": "^1.10.0"
 }
 ```
 
-### Environment & Config
-```json
-{
-  "dotenv": "^16.4.7"
-}
+Built-in Node capabilities are used for the HTTP server, crypto hashing/tokens, filesystem receipt storage, and the `node:test` test runner. Data currently uses a JSON-file store; production should replace it with a transactional database, migrations, backups, and durable audit retention.
+
+Backend commands:
+
+```cmd
+cd attendance-mobile\Backend
+npm install
+npm run seed
+npm test
+npm run lint
+npm start
 ```
 
----
+## Admin Panel
 
-## 🎨 Admin Panel (Next.js - Neumorphism Design)
-
-### Framework
 ```json
 {
-  "next": "14.1.0",
+  "next": "16.2.10",
   "react": "^18.2.0",
   "react-dom": "^18.2.0",
-  "node": ">=24.0.0"
-}
-```
-
-### State Management
-```json
-{
-  "zustand": "^4.5.0"
-}
-```
-
-### Data Fetching
-```json
-{
-  "@tanstack/react-query": "^5.17.9",
-  "axios": "^1.6.5"
-}
-```
-
-### UI Components & Icons
-```json
-{
-  "lucide-react": "^0.312.0"
-}
-```
-
-### Charts & Visualization
-```json
-{
-  "recharts": "^2.10.4"
-}
-```
-
-### Utilities
-```json
-{
-  "date-fns": "^3.2.0",
-  "clsx": "^2.1.0",
-  "tailwind-merge": "^2.2.1"
-}
-```
-
-### Styling
-```json
-{
-  "tailwindcss": "^3.4.1",
-  "autoprefixer": "^10.4.17",
-  "postcss": "^8.4.33"
-}
-```
-
-### TypeScript
-```json
-{
-  "typescript": "^5.3.3",
-  "@types/node": "^24.0.0",
-  "@types/react": "^18.2.48",
-  "@types/react-dom": "^18.2.18"
-}
-```
-
----
-
-## 🌐 Landing Page (Next.js - Glassmorphism Design)
-
-### Framework
-```json
-{
-  "next": "14.1.0",
-  "react": "^18.2.0",
-  "react-dom": "^18.2.0",
-  "node": ">=24.0.0"
-}
-```
-
-### Animations
-```json
-{
-  "framer-motion": "^11.0.3"
-}
-```
-
-### UI Components
-```json
-{
   "lucide-react": "^0.312.0",
-  "@radix-ui/react-accordion": "^1.1.2"
-}
-```
-
-### Utilities
-```json
-{
-  "clsx": "^2.1.0",
-  "tailwind-merge": "^2.2.1"
-}
-```
-
-### Styling
-```json
-{
-  "tailwindcss": "^3.4.1",
-  "autoprefixer": "^10.4.17",
-  "postcss": "^8.4.33"
-}
-```
-
-### TypeScript
-```json
-{
   "typescript": "^5.3.3",
-  "@types/node": "^24.0.0",
-  "@types/react": "^18.2.48",
-  "@types/react-dom": "^18.2.18"
+  "tailwindcss": "^3.4.1",
+  "postcss": "^8.5.10",
+  "autoprefixer": "^10.4.17"
 }
 ```
+The admin uses native `fetch`, React hooks, and local component state. Zustand, TanStack Query, Axios, Recharts, date-fns, clsx, and tailwind-merge are **not** admin-panel dependencies in this repository.
 
----
+Admin commands:
 
-## 🖥️ Desktop App (Electron)
-
-### Framework
-```json
-{
-  "electron": "^28.1.0",
-  "node": ">=24.0.0"
-}
-```
-
-### Activity Tracking
-```json
-{
-  "active-win": "^8.1.0",
-  "uiohook-napi": "^1.5.4"
-}
-```
-
-### System Integration
-```json
-{
-  "auto-launch": "^5.0.6",
-  "electron-store": "^8.1.0",
-  "electron-updater": "^6.1.7"
-}
-```
-
-### Networking & Storage
-```json
-{
-  "node-fetch": "^2.7.0",
-  "ioredis": "^5.3.2"
-}
-```
-
-### Build Tools
-```json
-{
-  "electron-builder": "^24.9.1"
-}
-```
-
----
-
-## 🎨 Design Tokens & Colors
-
-### Professional Blue Theme (Landing Page & Mobile)
-```css
-/* Primary Colors */
---primary-blue-50: #eff6ff;
---primary-blue-500: #3b82f6;
---primary-blue-600: #2563eb; /* Main */
---primary-blue-700: #1d4ed8;
-
-/* Accent Colors */
---accent-cyan-400: #22d3ee;
---accent-cyan-500: #06b6d4; /* Main */
---accent-cyan-600: #0891b2;
-
-/* Status Colors */
---success: #10b981;
---warning: #f59e0b;
---error: #dc2626;
---info: #3b82f6;
-```
-
-### Neumorphic Warm Theme (Admin Panel)
-```css
-/* Background */
---neu-bg: #F5F0E8;
---neu-bg-alt: #EBE4D8;
-
-/* Shadows */
---neu-shadow-dark: #D4CEC2;
---neu-shadow-light: #FFFFFF;
-
-/* Brand Colors */
---primary: #E07B39;
---primary-light: #F09856;
---accent: #D4A853;
---secondary: #2D9B83;
-
-/* Text */
---text: #3D3229;
---text-secondary: #5C4F3D;
-```
-
----
-
-## 🎯 Key Design Patterns & CSS Techniques
-
-### Neumorphism Effects
-```css
-/* Raised Card */
-.neu-card {
-  box-shadow: 5px 5px 10px var(--neu-shadow-dark),
-              -5px -5px 10px var(--neu-shadow-light);
-}
-
-/* Inset/Pressed */
-.neu-inset {
-  box-shadow: inset 3px 3px 6px var(--neu-shadow-dark),
-              inset -3px -3px 6px var(--neu-shadow-light);
-}
-
-/* Button with Hover */
-.neu-button:hover {
-  box-shadow: 5px 5px 10px var(--neu-shadow-dark),
-              -5px -5px 10px var(--neu-shadow-light);
-}
-
-.neu-button:active {
-  box-shadow: inset 2px 2px 4px var(--neu-shadow-dark),
-              inset -2px -2px 4px var(--neu-shadow-light);
-}
-```
-
-### Glassmorphism Effects
-```css
-/* Glass Card */
-.glass-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-/* Sticky Header with Blur */
-.header {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-}
-```
-
-### Modern Shadow System
-```css
-/* Tailwind Shadow Utilities Used */
-shadow-sm       /* Small subtle shadow */
-shadow-lg       /* Large shadow for elevation */
-shadow-xl       /* Extra large for modals */
-shadow-2xl      /* Maximum elevation */
-
-/* Colored Shadows */
-shadow-blue-600/20   /* Blue shadow at 20% opacity */
-shadow-blue-900/10   /* Dark blue at 10% opacity */
-```
-
----
-
-## 📱 Installation Commands
-
-### For Admin Panel (Neumorphism)
-```bash
-npm create next-app@14.1.0 my-admin-panel
-cd my-admin-panel
-npm install zustand @tanstack/react-query axios lucide-react recharts date-fns clsx tailwind-merge
-npm install -D typescript @types/node @types/react @types/react-dom tailwindcss postcss autoprefixer
-```
-
-### For Landing Page (Glassmorphism)
-```bash
-npm create next-app@14.1.0 my-landing-page
-cd my-landing-page
-npm install framer-motion lucide-react @radix-ui/react-accordion clsx tailwind-merge
-npm install -D typescript @types/node @types/react @types/react-dom tailwindcss postcss autoprefixer
-```
-
-### For Backend API
-```bash
-mkdir my-backend && cd my-backend
-npm init -y
-npm install express cors helmet morgan dotenv
-```
-
-### For Desktop App
-```bash
-mkdir my-desktop-app && cd my-desktop-app
-npm init -y
-npm install electron active-win auto-launch electron-store electron-updater node-fetch ioredis
-npm install -D electron-builder
-```
-
----
-
-## 🔗 Useful Resources
-
-### Design Inspiration
-- **Neumorphism Generator**: https://neumorphism.io/
-- **Glassmorphism Generator**: https://glassmorphism.com/
-- **Tailwind Components**: https://tailwindui.com/
-- **Shadcn UI**: https://ui.shadcn.com/
-- **Radix UI**: https://www.radix-ui.com/
-
-### Icon Libraries
-- **Lucide React**: https://lucide.dev/ (Used in this project)
-- **Heroicons**: https://heroicons.com/
-- **React Icons**: https://react-icons.github.io/react-icons/
-
-### Animation Libraries
-- **Framer Motion**: https://www.framer.com/motion/ (Used in landing page)
-- **React Spring**: https://www.react-spring.dev/
-- **GSAP**: https://greensock.com/gsap/
-
-### Charts & Data Viz
-- **Recharts**: https://recharts.org/ (Used in admin panel)
-- **Chart.js**: https://www.chartjs.org/
-- **Victory**: https://formidable.com/open-source/victory/
-
----
-
-## 🚀 Quick Start Template
-
-### Copy This for New Projects
-
-```bash
-# 1. Create Next.js app with TypeScript
-npx create-next-app@14.1.0 my-app --typescript --tailwind --app
-
-# 2. Install core UI dependencies
-npm install lucide-react clsx tailwind-merge
-
-# 3. Install state & data fetching (if needed)
-npm install zustand @tanstack/react-query axios
-
-# 4. Install animations (if needed)
-npm install framer-motion
-
-# 5. Install UI components (if needed)
-npm install @radix-ui/react-accordion @radix-ui/react-dialog @radix-ui/react-dropdown-menu
-
-# 6. Install charts (if needed)
-npm install recharts
-
-# 7. Install utilities (if needed)
-npm install date-fns
-
-# 8. Start development
+```cmd
+cd admin-panel
+npm install
+npm run lint
+npm run build
 npm run dev
 ```
 
----
+## Employee Mobile / Web Portal
 
-## 📋 Summary
+```json
+{
+  "expo": "~54.0.36",
+  "react": "19.1.0",
+  "react-native": "0.81.5",
+  "react-native-web": "~0.21.0",
+  "@expo/metro-runtime": "~6.1.2",
+  "expo-location": "~19.0.8",
+  "expo-document-picker": "~14.0.8",
+  "expo-file-system": "~19.0.23",
+  "expo-print": "~15.0.8",
+  "expo-sharing": "~14.0.8",
+  "expo-status-bar": "~3.0.9"
+}
+```
 
-### Design Systems
-1. **Neumorphism** - Admin panels, dashboards (warm, tactile)
-2. **Glassmorphism** - Landing pages, modern web apps (clean, corporate)
+Mobile commands:
 
-### Core Stack
-- **Frontend**: Next.js 14 + React 18 + TypeScript
-- **Styling**: TailwindCSS 3.4 + Custom CSS
-- **Icons**: Lucide React
-- **Animations**: Framer Motion
-- **State**: Zustand
-- **Data Fetching**: TanStack Query + Axios
-- **Charts**: Recharts
-- **Backend**: Node.js + Express
-- **Desktop**: Electron
+```cmd
+cd attendance-mobile
+npm install
+npm run doctor
+npm run export:web
+npm run start
+```
 
-### Key Libraries
-- `lucide-react` - Icons
-- `framer-motion` - Animations
-- `zustand` - State management
-- `@tanstack/react-query` - Server state
-- `recharts` - Charts
-- `clsx` + `tailwind-merge` - Class utilities
-- `date-fns` - Date formatting
+`npm run start` is interactive/long-running and should be run manually. Android emulators use `10.0.2.2` for the local API; web/iOS local development uses `127.0.0.1`. Production should set `EXPO_PUBLIC_API_URL`.
 
----
+## Landing Page
 
-*Use this list to replicate the QHR design system in any new application!*
+```json
+{
+  "next": "16.2.10",
+  "react": "^18.2.0",
+  "framer-motion": "^11.0.3",
+  "lucide-react": "^0.312.0",
+  "@radix-ui/react-accordion": "^1.1.2",
+  "clsx": "^2.1.0",
+  "tailwind-merge": "^2.2.1",
+  "tailwindcss": "^3.4.1"
+}
+```
+
+## Desktop App
+
+```json
+{
+  "electron": "^43.1.0",
+  "electron-builder": "^26.15.3",
+  "get-windows": "^9.3.0",
+  "uiohook-napi": "^1.5.5",
+  "auto-launch": "^5.0.6",
+  "electron-store": "^8.1.0",
+  "electron-updater": "^6.1.7",
+  "ioredis": "^5.3.2",
+  "node-fetch": "^2.7.0"
+}
+```
+Desktop commands:
+
+```cmd
+cd desktop-app
+npm install
+npm run pack
+npm run build:win
+```
+
+## Reusable Product Features Implemented
+
+- Multi-tenant companies, role-based access, employee lifecycle, managers, departments, and designations.
+- GPS/geofence attendance, check-in/out, leave, WFH, holidays, attendance policy, and payroll payable-day calculation.
+- Company salary templates plus employee overrides, effective-dated salary revisions, manual TDS, PF/ESI/PT/LWF/gratuity configuration, and recurring additions/deductions.
+- Independent earning formula and salary treatment: fixed / percentage formulas can be either included in gross or paid after gross; after-gross items are excluded from PF/ESI wage bases.
+- Payroll generation, draft review, one-time adjustments, approval, immutable issued payslips, publishing, payment advice, UTR reconciliation, YTD totals, and printable payslips.
+- Employee reimbursement claims, manager/finance approval, partial approval, payroll or separate payment, protected PDF/JPEG/PNG receipts, and duplicate-payment protection.
+- Subscription billing, invoices, payment records, company billing modes, and platform-level tenant administration.
+- Projects/tasks, grievances, desktop activity summaries, audit trails, CSV exports, and responsive employee/admin portals.
+- Guided company onboarding: ten setup steps (company profile, payroll identity, work locations, departments/designations, statutory, attendance policy, leave policy, holidays, team, review) whose completion is derived from the stored records themselves rather than from boolean flags, so progress cannot drift from reality. Steps are freely navigable and resumable, payroll identity and statutory setup are Company Admin only, optional steps can be skipped, going live is rejected with an aggregated list of blockers until every required step passes, and onboarding can be reopened with an audit entry.
+
+## Design System
+
+Admin and employee portals use a Microsoft Fluent-inspired enterprise flat design:
+
+```css
+--neu-bg: #F5F7FA;       /* compatibility name: app canvas */
+--neu-bg-alt: #FFFFFF;   /* surfaces and form controls */
+--primary: #0F6CBD;      /* primary actions and active states */
+--text: #172033;
+--text-secondary: #596579;
+--border: #D8DEE6;
+--success: #107C41;
+```
+
+Legacy `neu-*` class names remain as compatibility aliases, but their implementation is flat: opaque white surfaces, 1px neutral borders, 6–8px radii, no embossed/inset shadows, and only restrained elevation for dialogs. Typography uses the native enterprise system stack—Segoe UI Variable/Segoe UI on Windows and web, SF system fonts on Apple platforms, and Roboto/sans-serif on Android—with responsive heading sizes, readable line heights, tabular financial numerals, accessible text scaling, and 16px mobile form controls. Buttons use solid colors with clear hover, pressed, disabled, and focus-visible states. Motion is short and functional, and reduced-motion preferences are respected. Mobile uses the same palette and hierarchy with touch-friendly controls and overflow-safe responsive grouping. Printable payroll documents retain their independent document-specific design.
+
+## Current Security and Reliability Baseline
+
+- Browser CORS uses an explicit origin allow-list; production fails closed when `ALLOWED_ORIGINS` is missing.
+- API and authentication endpoints have configurable IP throttling, with stricter login/refresh limits.
+- Access and refresh tokens are stored as SHA-256 hashes, rotated on refresh, and configurable through explicit TTL settings. Privileged login no longer accepts an employee passcode as a password fallback.
+- Password changes enforce a stronger policy, reject password reuse, and revoke the user’s other sessions.
+- Holiday retrieval requires authentication and is scoped to the logged-in company.
+- Every request receives an `X-Request-Id`; error envelopes and backend logs use the same correlation ID.
+- JSON persistence now uses a flushed temporary file, atomic rename, previous-file backup, serialized mutations, and in-memory rollback on failed writes. PM2 is intentionally limited to one backend process while JSON storage remains.
+
+These controls improve the current deployment but do not replace a transactional database, centralized rate limiting, immutable audit storage, object storage, or tested disaster recovery.
+
+## What Must Change Before High-Scale Production
+
+1. Replace JSON storage and local receipt files with a database and private object storage.
+2. Add database migrations, encryption/key management, backups, retention, malware scanning, and observability.
+3. Integrate tenant-specific statutory filing/tax rules and legal review; configuration is not legal or tax advice.
+4. Integrate bank-specific encrypted payment files or payment APIs; the current CSV is an advice/register, not a bank upload file.
+5. Add deployment CI/CD, secret management, rate limiting at the edge, disaster recovery, and production monitoring.
+
+## Copying This Stack to Another App
+
+Use the package manifests as the source of truth. Copy only the packages needed by that application rather than installing every library into every frontend. Prefer `npm install` from a committed lockfile for exact reproduction, and keep Node at the engines requirement (`>=20.19` for Next.js/Electron apps; `>=20` for the backend).

@@ -223,6 +223,10 @@ QHR Attendance Management System is a comprehensive HRMS solution designed for S
 | GET | `/attendance/my` | My attendance history | Employee |
 | GET | `/attendance/summary` | Attendance summary | Employee |
 | GET | `/attendance/team` | Team attendance | Manager+ |
+| GET | `/attendance/overview` | Policy-aware team attendance summary | Manager+ |
+| GET | `/attendance/policy` | Company attendance/payroll policy | HR/Admin |
+| PATCH | `/attendance/policy` | Update attendance, leave, holiday payroll policy | Admin |
+| PATCH | `/attendance/status` | Manually correct attendance status/duration | HR/Admin |
 
 ### Leave Management Endpoints
 | Method | Endpoint | Description | Permissions |
@@ -244,6 +248,7 @@ QHR Attendance Management System is a comprehensive HRMS solution designed for S
 | GET | `/wfh/my-requests` | My WFH requests | Employee |
 | GET | `/wfh/pending` | Pending requests | Approver |
 | GET | `/wfh/stats` | WFH statistics | Manager+ |
+| POST | `/wfh/assign` | Assign approved WFH and mark attendance | HR/Admin |
 | GET | `/wfh/:id` | WFH details | Employee |
 | PATCH | `/wfh/:id/review` | Review WFH request | Approver |
 | PATCH | `/wfh/:id/cancel` | Cancel WFH request | Employee |
@@ -270,11 +275,20 @@ QHR Attendance Management System is a comprehensive HRMS solution designed for S
 | POST | `/payroll/generate` | Generate salary | HR/Admin |
 | POST | `/payroll/bulk-generate` | Bulk generate salaries | HR/Admin |
 | GET | `/payroll` | Get salary records | HR/Admin |
-| PATCH | `/payroll/:salaryId/approve` | Approve salary | HR/Admin |
-| POST | `/payroll/:salaryId/bonus` | Add bonus | HR/Admin |
-| POST | `/payroll/:salaryId/deduction` | Add deduction | HR/Admin |
-| DELETE | `/payroll/:salaryId/bonus/:bonusId` | Remove bonus | HR/Admin |
-| DELETE | `/payroll/:salaryId/deduction/:deductionId` | Remove deduction | HR/Admin |
+| GET/PATCH | `/payroll/settings` | Company payroll and statutory policy | HR read/Admin write |
+| GET/PUT | `/payroll/salary-structures/:employeeId` | Employee salary structure | HR/Admin |
+| GET | `/payroll/runs` | Payroll generation history | HR/Admin |
+| POST | `/payroll/:salaryId/submit` | Submit salary for approval | HR/Admin |
+| PATCH | `/payroll/:salaryId/approve` | Final salary approval | Admin |
+| POST | `/payroll/bulk/submit` | Submit all period drafts | HR/Admin |
+| POST | `/payroll/bulk/approve` | Approve all eligible period salaries | Admin |
+| POST | `/payroll/bulk/publish` | Publish all approved period payslips | Admin |
+| POST | `/payroll/:salaryId/adjustments` | Add bonus/deduction/reimbursement | HR/Admin |
+| DELETE | `/payroll/:salaryId/adjustments/:adjustmentId` | Remove draft adjustment | HR/Admin |
+| POST | `/payroll/:salaryId/publish` | Publish approved payslip | Admin |
+| POST | `/payroll/:salaryId/mark-paid` | Record salary payment | Admin |
+| GET | `/payroll/:salaryId/download` | Download printable payslip | HR/Admin |
+| GET | `/payroll/my-payslips` | Published employee payslips | Employee |
 
 ### Project & Task Endpoints
 | Method | Endpoint | Description | Permissions |

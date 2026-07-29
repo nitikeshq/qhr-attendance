@@ -400,36 +400,28 @@ npm run dev
 
 ### Environment Variables
 
-Create `.env` file in `Backend/` folder:
+Create `.env` in `attendance-mobile/Backend/` using `.env.example`:
 
 ```env
-# Server Configuration
 NODE_ENV=development
-PORT=3001
+PORT=5001
+QHR_DATA_FILE=./data/dev-db.json
 
-# MongoDB (Local)
-MONGODB_URI=mongodb://localhost:27017/attendance_db
+# Browser origins. Production must provide its exact HTTPS origins.
+ALLOWED_ORIGINS=http://localhost:3002,http://localhost:3003,http://localhost:8082
+TRUST_PROXY=false
+MAX_JSON_BODY=10mb
 
-# MongoDB (Atlas - Production)
-# MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/dbname
-
-# JWT Configuration
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
-JWT_EXPIRES_IN=7d
-JWT_REFRESH_SECRET=your-refresh-token-secret
-JWT_REFRESH_EXPIRES_IN=30d
-
-# Redis Configuration (optional)
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# Rate Limiting
+# Opaque session TTLs and abuse controls (milliseconds).
+ACCESS_TOKEN_TTL_MS=86400000
+REFRESH_TOKEN_TTL_MS=2592000000
 RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
-
-# CORS
-ALLOWED_ORIGINS=http://localhost:3001,http://localhost:8081
+RATE_LIMIT_MAX_REQUESTS=300
+AUTH_RATE_LIMIT_WINDOW_MS=900000
+AUTH_RATE_LIMIT_MAX_ATTEMPTS=10
 ```
+
+The current backend uses hashed opaque session tokens rather than JWTs. MongoDB/Redis variables are not active until the planned transactional database and shared rate-limiter migration.
 
 ### Seed Test Data
 
@@ -657,10 +649,12 @@ sudo certbot --nginx -d hr.yourdomain.com
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/auth/login` | Login |
-| POST | `/api/v1/auth/change-password` | Change password |
-| POST | `/api/v1/auth/refresh-token` | Refresh JWT token |
-| GET | `/api/v1/auth/me` | Get current user |
+| POST | `/api/v1/auth/login` | Employee login with company code, employee ID, and passcode |
+| POST | `/api/v1/auth/admin-login` | Privileged login with email and password |
+| POST | `/api/v1/auth/change-password` | Change password and revoke other sessions |
+| POST | `/api/v1/auth/refresh-token` | Rotate opaque access and refresh tokens |
+| POST | `/api/v1/auth/logout` | Revoke the current session |
+| GET | `/api/v1/auth/me` | Get current authenticated user |
 
 ### Attendance
 
@@ -701,7 +695,7 @@ sudo certbot --nginx -d hr.yourdomain.com
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/companies` | List companies |
-| GET | `/api/v1/holidays` | Get holidays |
+| GET | `/api/v1/holidays` | Get authenticated user's company holidays |
 | GET | `/api/v1/leave-types` | Get leave types |
 | GET | `/api/v1/attendance-areas` | Get geofence areas |
 

@@ -1,4 +1,8 @@
 node_modules/
 .env
 data/*.json
+data/*.json.bak
+data/*.tmp
+data/*.log
+data/uploads/
 coverage/

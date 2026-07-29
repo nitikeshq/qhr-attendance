@@ -12,7 +12,7 @@ function messageBody(notification) {
     details.renewalAt ? `Renewal date: ${new Date(details.renewalAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}` : null,
     details.graceEndsAt ? `Access pause date: ${new Date(details.graceEndsAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}` : null,
     details.automaticSuspension === false ? 'This manual billing account will not be automatically suspended.' : null,
-    details.freeAdminAccess ? 'The free Company Admin remains available for billing and payment.' : null,
+    details.billingContactAccess ? 'The billing contact can still sign in to settle the invoice.' : null,
     '',
     'Please sign in to the QHR Company Admin portal to review the invoice and payment options.',
   ].filter((line) => line !== null);

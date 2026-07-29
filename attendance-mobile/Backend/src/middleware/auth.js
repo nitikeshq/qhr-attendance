@@ -1,6 +1,7 @@
 const { fail } = require('../utils/responses');
 const { findCompany, publicEmployee } = require('../utils/records');
 const { normalizedSubscription } = require('../utils/billing');
+const { sessionTokenMatches } = require('../utils/sessionTokens');
 
 async function authRequired(req, res, next) {
   try {
@@ -12,7 +13,7 @@ async function authRequired(req, res, next) {
     }
 
     const data = await req.app.locals.store.read();
-    const session = data.sessions.find((item) => item.accessToken === token);
+    const session = data.sessions.find((item) => sessionTokenMatches(item, 'access', token));
     if (!session || new Date(session.accessExpiresAt).getTime() < Date.now()) {
       return fail(res, 401, 'Session expired or invalid');
     }
@@ -29,8 +30,8 @@ async function authRequired(req, res, next) {
     const subscription = company ? normalizedSubscription(company, data) : null;
     if (subscription?.billingMode === 'automatic' && subscription.status === 'paused' && employee.role !== 'super_admin') {
       const fallbackBillingAdmin = data.employees.find((item) => item.companyId === company._id && item.role === 'admin' && item.status !== 'inactive');
-      const freeAdminEmployeeId = subscription.freeAdminEmployeeId || fallbackBillingAdmin?._id;
-      if (employee._id !== freeAdminEmployeeId) {
+      const billingContactEmployeeId = subscription.billingContactEmployeeId || fallbackBillingAdmin?._id;
+      if (employee._id !== billingContactEmployeeId) {
         return fail(res, 403, 'Subscription payment is overdue. Ask the Company Admin to renew access.');
       }
     }
