@@ -1,4 +1,4 @@
-const assert = require('node:assert/strict');
+﻿const assert = require('node:assert/strict');
 const test = require('node:test');
 const http = require('node:http');
 const path = require('node:path');
@@ -12,10 +12,14 @@ const { JsonStore } = require('../src/store/jsonStore');
 const dataFile = path.join(__dirname, `enterprise-smoke-${process.pid}.json`);
 let server;
 let baseUrl;
+// Kept module-scoped so a test can assert on what was actually written, not only
+// on what the API chose to return.
+let store;
 
 test.before(async () => {
   await fs.rm(dataFile, { force: true });
-  const app = createApp({ store: new JsonStore(dataFile) });
+  store = new JsonStore(dataFile);
+  const app = createApp({ store });
   server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   baseUrl = `http://127.0.0.1:${server.address().port}`;
@@ -1373,4 +1377,409 @@ test('the tenant dashboard reports the real subscription cost, not a per-head gu
   assert.ok(resized.data.summary.monthlySubscription > summary.monthlySubscription, 'and moves the amount with it');
 
   await grantSeats('TESTCO', tenant.paidSeats);
+});
+
+// Registration verification used to return the code in its own response and
+// accepted any code when none was stored, so it verified nothing at all.
+test('company verification is hashed, expiring, attempt-limited, and never echoed', async () => {
+  const registration = await call('/api/v1/companies/register', {
+    method: 'POST',
+    body: {
+      name: 'Verify Guard Co', code: 'VGUARD', email: 'owner@vguard.test',
+      adminName: 'Vera Guard', adminEmail: 'owner@vguard.test', adminPassword: 'Str0ng!Passw0rd',
+    },
+  });
+  assert.equal(registration.status, 201, registration.message);
+  assert.match(String(registration.data.message), /verification code/i);
+  assert.equal(registration.data.verificationSentTo, 'owner@vguard.test');
+
+  // Exposed only because NODE_ENV is test; production omits it entirely.
+  const code = registration.data.verificationCode;
+  assert.ok(code, 'the test environment exposes the code so the flow can be driven');
+  assert.match(String(code), /^\d{6}$/);
+
+  // The code is queued for delivery rather than handed back to the caller.
+  let data = await store.read();
+  const company = data.companies.find((item) => item.code === 'VGUARD');
+  assert.ok(company, 'expected the registered company');
+  assert.equal(company.verificationCode, undefined, 'no plaintext code may remain on the record');
+  assert.ok(company.verification.codeHash.startsWith('pbkdf2$'), 'the code is stored hashed');
+  assert.ok(company.verification.expiresAt, 'the code expires');
+
+  const queued = (data.outboundEmails || []).filter((item) => item.companyId === company._id);
+  assert.equal(queued.length, 1, 'the code is queued as an email');
+  assert.equal(queued[0].to, 'owner@vguard.test');
+  assert.ok(queued[0].body.includes(String(code)), 'the email carries the code');
+
+  const wrong = await call('/api/v1/companies/verify-email', {
+    method: 'POST', body: { companyCode: 'VGUARD', verificationCode: '000000' },
+  });
+  assert.equal(wrong.status, 400);
+  assert.match(wrong.message, /attempt\(s\) left/);
+
+  const right = await call('/api/v1/companies/verify-email', {
+    method: 'POST', body: { companyCode: 'VGUARD', verificationCode: code },
+  });
+  assert.equal(right.status, 200, right.message);
+  assert.equal(right.data.company.isVerified, true);
+
+  // The code is consumed, and repeating the call stays harmless.
+  data = await store.read();
+  const verified = data.companies.find((item) => item.code === 'VGUARD');
+  assert.equal(verified.verification, undefined, 'the code is cleared once used');
+  const again = await call('/api/v1/companies/verify-email', {
+    method: 'POST', body: { companyCode: 'VGUARD', verificationCode: code },
+  });
+  assert.equal(again.status, 200, 'verifying an already-verified company is idempotent');
+});
+
+test('a company with no outstanding code cannot be verified by any code', async () => {
+  const registration = await call('/api/v1/companies/register', {
+    method: 'POST',
+    body: {
+      name: 'No Code Co', code: 'NOCODE', email: 'owner@nocode.test',
+      adminName: 'Nora Code', adminEmail: 'owner@nocode.test', adminPassword: 'Str0ng!Passw0rd',
+    },
+  });
+  assert.equal(registration.status, 201, registration.message);
+
+  // Strip the outstanding code, which is the state older records were left in.
+  await store.update((data) => {
+    const company = data.companies.find((item) => item.code === 'NOCODE');
+    delete company.verification;
+    delete company.verificationCode;
+    return {};
+  });
+
+  const attempt = await call('/api/v1/companies/verify-email', {
+    method: 'POST', body: { companyCode: 'NOCODE', verificationCode: '123456' },
+  });
+  assert.equal(attempt.status, 400);
+  assert.match(attempt.message, /No verification code is outstanding/);
+
+  const missing = await call('/api/v1/companies/verify-email', {
+    method: 'POST', body: { companyCode: 'NOCODE' },
+  });
+  assert.equal(missing.status, 400);
+  assert.match(missing.message, /required/i);
+});
+
+test('too many wrong codes locks verification until a new code is issued', async () => {
+  const registration = await call('/api/v1/companies/register', {
+    method: 'POST',
+    body: {
+      name: 'Lockout Co', code: 'LOCKCO', email: 'owner@lockco.test',
+      adminName: 'Lock Owner', adminEmail: 'owner@lockco.test', adminPassword: 'Str0ng!Passw0rd',
+    },
+  });
+  assert.equal(registration.status, 201, registration.message);
+  const code = registration.data.verificationCode;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const response = await call('/api/v1/companies/verify-email', {
+      method: 'POST', body: { companyCode: 'LOCKCO', verificationCode: '111111' },
+    });
+    assert.equal(response.status, 400);
+  }
+
+  // Even the correct code is refused once the attempt budget is spent.
+  const blocked = await call('/api/v1/companies/verify-email', {
+    method: 'POST', body: { companyCode: 'LOCKCO', verificationCode: code },
+  });
+  assert.equal(blocked.status, 429);
+  assert.match(blocked.message, /Too many incorrect attempts/);
+
+  // A resend straight after registration is refused: the cooldown stops the
+  // endpoint being used to spam an address.
+  const tooSoon = await call('/api/v1/companies/resend-verification', {
+    method: 'POST', body: { companyCode: 'LOCKCO' },
+  });
+  assert.equal(tooSoon.status, 429);
+  assert.match(tooSoon.message, /before requesting another code/);
+
+  // Backdate the last send to step past the cooldown rather than weakening it.
+  await store.update((data) => {
+    const company = data.companies.find((item) => item.code === 'LOCKCO');
+    company.verification.sentAt = new Date(Date.now() - 120000).toISOString();
+    return {};
+  });
+
+  // Resending clears the lock and invalidates the previous code.
+  const resent = await call('/api/v1/companies/resend-verification', {
+    method: 'POST', body: { companyCode: 'LOCKCO' },
+  });
+  assert.equal(resent.status, 200, resent.message);
+  const fresh = resent.data.verificationCode;
+  assert.ok(fresh && fresh !== code, 'a resend issues a different code');
+
+  const stale = await call('/api/v1/companies/verify-email', {
+    method: 'POST', body: { companyCode: 'LOCKCO', verificationCode: code },
+  });
+  assert.equal(stale.status, 400, 'the superseded code no longer works');
+
+  const accepted = await call('/api/v1/companies/verify-email', {
+    method: 'POST', body: { companyCode: 'LOCKCO', verificationCode: fresh },
+  });
+  assert.equal(accepted.status, 200, accepted.message);
+});
+
+test('resend does not reveal whether a company exists', async () => {
+  const unknown = await call('/api/v1/companies/resend-verification', {
+    method: 'POST', body: { companyCode: 'NOSUCHTENANT' },
+  });
+  assert.equal(unknown.status, 200, 'an unknown code must not 404, or it becomes an enumeration tool');
+  assert.equal(unknown.data.verificationCode, undefined);
+  assert.match(String(unknown.data.message), /If that company is awaiting verification/);
+});
+
+
+// Weekly offs were only honoured when workingDayMethod was 'working_days'. Under
+// the other two methods a Sunday with no check-in became an unnoticed absence, so
+// enabling absence deductions removed roughly eight days of pay per person.
+test('weekly offs are paid, not absences, under every payable-day method', async () => {
+  const token = await adminToken();
+
+  const saved = await call('/api/v1/attendance/work-week', {
+    method: 'PATCH',
+    token,
+    body: {
+      workWeek: {
+        0: 'off',
+        1: 'full', 2: 'full', 3: 'full', 4: 'full', 5: 'full',
+        // 2nd and 4th Saturday off, the rest worked as half days.
+        6: { pattern: 'nth', off: [2, 4], otherwise: 'half' },
+      },
+    },
+  });
+  assert.equal(saved.status, 200, saved.message);
+  assert.deepEqual(saved.data.workingDays, [1, 2, 3, 4, 5, 6], 'Saturday still works on some weeks');
+  assert.ok(saved.data.workWeekSummary.some((line) => /Saturday: 2nd and 4th off/.test(line)));
+  assert.ok(saved.data.workWeekSummary.some((line) => /Sunday: weekly off/.test(line)));
+
+  // March 2026: Sundays on 1, 8, 15, 22, 29; Saturdays on 7, 14, 21, 28.
+  const preview = await call('/api/v1/attendance/work-week/preview?period=2026-03', { token });
+  assert.equal(preview.status, 200, preview.message);
+  assert.equal(preview.data.calendarDays, 31);
+  assert.equal(preview.data.weeklyOffDays, 7, '5 Sundays plus the 2nd and 4th Saturday');
+  assert.equal(preview.data.halfDays, 2, 'the 1st and 3rd Saturday are half days');
+
+  const byDate = new Map(preview.data.days.map((day) => [day.date, day.kind]));
+  assert.equal(byDate.get('2026-03-01'), 'off', 'Sunday');
+  assert.equal(byDate.get('2026-03-07'), 'half', '1st Saturday');
+  assert.equal(byDate.get('2026-03-14'), 'off', '2nd Saturday');
+  assert.equal(byDate.get('2026-03-21'), 'half', '3rd Saturday');
+  assert.equal(byDate.get('2026-03-28'), 'off', '4th Saturday');
+  assert.equal(byDate.get('2026-03-16'), 'full', 'an ordinary Monday');
+
+  // The denominator follows workingDayMethod and is reported separately from the
+  // roster, because statutory practice often uses a flat 30.
+  assert.equal(preview.data.workingDayMethod, 'calendar_days');
+  assert.equal(preview.data.payableDayBasis, 31);
+
+  // With absence deductions on, a month of untouched weekends must still pay in
+  // full. This is the regression the whole change exists to prevent.
+  const policy = await call('/api/v1/attendance/policy', {
+    method: 'PATCH', token, body: { attendancePolicy: { payrollImpact: 'attendance_and_leave' } },
+  });
+  assert.equal(policy.status, 200, policy.message);
+
+  const employees = await call('/api/v1/employees?limit=100', { token });
+  const subject = employees.data.employees.find((item) => item.employeeId === 'EMP001');
+  assert.ok(subject, 'expected the seeded employee');
+
+  const team = await call('/api/v1/attendance/team?date=2026-03-16&period=2026-03', { token });
+  assert.equal(team.status, 200);
+  const row = team.data.attendances.find((item) => item.employee.employeeId === 'EMP001');
+  assert.ok(row, 'expected a row for the employee');
+  assert.equal(row.summary.weeklyOffDays, 7, 'the summary counts weekly offs in every method');
+  assert.equal(row.summary.unnoticedAbsenceDays > 0, true, 'working days with no record are still absences');
+
+  // Team rows expose the requested day directly, so each kind is checked by date.
+  // A weekly off must pay in full and never register as loss of pay.
+  for (const date of ['2026-03-01', '2026-03-14', '2026-03-28']) {
+    const dayRow = await call(`/api/v1/attendance/team?date=${date}&period=2026-03`, { token });
+    const entry = dayRow.data.attendances.find((item) => item.employee.employeeId === 'EMP001');
+    assert.equal(entry.day.status, 'weekly_off', `${date} is a weekly off`);
+    assert.equal(entry.day.payableDays, 1, `${date} pays a full day`);
+    assert.equal(entry.day.lossOfPayDays, 0, `${date} is never loss of pay`);
+  }
+
+  // A worked Saturday is still a working day, so an absence there is real.
+  const workedSaturday = await call('/api/v1/attendance/team?date=2026-03-07&period=2026-03', { token });
+  const saturday = workedSaturday.data.attendances.find((item) => item.employee.employeeId === 'EMP001');
+  assert.notEqual(saturday.day.status, 'weekly_off', 'the 1st Saturday is worked');
+
+  // Restore the seeded configuration so later tests are unaffected.
+  await call('/api/v1/attendance/policy', {
+    method: 'PATCH', token, body: { attendancePolicy: { payrollImpact: 'leave_only' } },
+  });
+  await call('/api/v1/attendance/work-week', {
+    method: 'PATCH', token, body: { workWeek: { 0: 'off', 1: 'full', 2: 'full', 3: 'full', 4: 'full', 5: 'full', 6: 'off' } },
+  });
+});
+
+test('an nth-weekday pattern with no occurrences collapses to a plain day', async () => {
+  const token = await adminToken();
+  const saved = await call('/api/v1/attendance/work-week', {
+    method: 'PATCH',
+    token,
+    body: { workWeek: { 0: 'off', 6: { pattern: 'nth', off: [], otherwise: 'half' } } },
+  });
+  assert.equal(saved.status, 200, saved.message);
+  assert.equal(saved.data.workWeek[6], 'half', 'a pattern that never triggers is just its fallback');
+
+  const restored = await call('/api/v1/attendance/work-week', {
+    method: 'PATCH', token, body: { workWeek: { 0: 'off', 1: 'full', 2: 'full', 3: 'full', 4: 'full', 5: 'full', 6: 'off' } },
+  });
+  assert.equal(restored.status, 200);
+});
+
+test('only an admin can change the work week', async () => {
+  const hr = await call('/api/v1/auth/admin-login', {
+    method: 'POST', body: { email: 'hr@testco.com', password: 'password123' },
+  });
+  assert.equal(hr.status, 200);
+
+  const read = await call('/api/v1/attendance/policy', { token: hr.data.accessToken });
+  assert.equal(read.status, 200, 'HR can see the work week');
+
+  const blocked = await call('/api/v1/attendance/work-week', {
+    method: 'PATCH', token: hr.data.accessToken, body: { workWeek: { 0: 'full' } },
+  });
+  assert.equal(blocked.status, 403, 'changing what everyone is paid is admin-only');
+});
+
+// Generation used to be the first moment any figure existed, so nothing could be
+// confirmed before committing a month.
+test('payroll can be previewed without writing anything', async () => {
+  const token = await adminToken();
+  const period = '2027-05';
+
+  const before = await call('/api/v1/payroll', { token });
+  const countBefore = (before.data.payroll || []).filter((item) => item.period === period).length;
+  assert.equal(countBefore, 0, 'nothing exists for this period yet');
+
+  const preview = await call(`/api/v1/payroll/preview?period=${period}`, { token });
+  assert.equal(preview.status, 200, preview.message);
+  assert.equal(preview.data.period, period);
+  assert.ok(Array.isArray(preview.data.rows) && preview.data.rows.length > 0, 'a row per employee');
+  assert.ok(preview.data.counts.employees > 0);
+  assert.ok(Object.prototype.hasOwnProperty.call(preview.data, 'ready'));
+  assert.ok(Object.prototype.hasOwnProperty.call(preview.data.totals, 'net'));
+
+  // Each payable row carries the figures and the day counts behind them.
+  const payable = preview.data.rows.find((row) => !row.skipped);
+  assert.ok(payable, 'expected at least one payable employee');
+  assert.ok(payable.figures.net >= 0);
+  assert.ok(payable.attendance.scheduledDays > 0);
+  assert.ok(Object.prototype.hasOwnProperty.call(payable.attendance, 'payableDays'));
+
+  // Employees without a salary structure are reported up front rather than being
+  // discovered in the run summary afterwards.
+  const skipped = preview.data.rows.filter((row) => row.skipped);
+  assert.ok(skipped.every((row) => row.skipReason === 'Salary structure not configured'));
+
+  const after = await call('/api/v1/payroll', { token });
+  const countAfter = (after.data.payroll || []).filter((item) => item.period === period).length;
+  assert.equal(countAfter, 0, 'a preview must not persist anything');
+});
+
+test('the preview flags a stale period and an unfinished one', async () => {
+  const token = await adminToken();
+
+  const past = await call('/api/v1/payroll/preview?period=2024-02', { token });
+  assert.equal(past.status, 200);
+  assert.ok(
+    past.data.company.warnings.some((item) => item.code === 'period.stale'),
+    'an old month is computed with current statutory settings, which is worth saying',
+  );
+
+  const future = await call('/api/v1/payroll/preview?period=2099-01', { token });
+  assert.equal(future.status, 200);
+  assert.ok(future.data.company.warnings.some((item) => item.code === 'period.future'));
+
+  const malformed = await call('/api/v1/payroll/preview?period=nonsense', { token });
+  assert.equal(malformed.status, 400);
+});
+
+test('the exceptions view returns only employees who differ from a clean month', async () => {
+  const token = await adminToken();
+  const period = '2027-06';
+
+  const all = await call(`/api/v1/payroll/preview?period=${period}&view=all`, { token });
+  const exceptions = await call(`/api/v1/payroll/preview?period=${period}&view=exceptions`, { token });
+  assert.equal(exceptions.status, 200);
+  assert.equal(exceptions.data.view, 'exceptions');
+  assert.ok(exceptions.data.rows.length <= all.data.rows.length);
+  assert.ok(
+    exceptions.data.rows.every((row) => row.reasons.length > 0 || row.blockers.length > 0),
+    'every row in the exceptions view has a stated reason',
+  );
+  // The counts describe the whole run even when the rows are filtered.
+  assert.equal(exceptions.data.counts.employees, all.data.counts.employees);
+  assert.equal(exceptions.data.counts.exceptions + exceptions.data.counts.clean, all.data.counts.employees);
+});
+
+test('a leave still awaiting a decision blocks approval of that period', async () => {
+  const token = await adminToken();
+  const period = '2027-08';
+
+  const employees = await call('/api/v1/employees?limit=100', { token });
+  const subject = employees.data.employees.find((item) => item.employeeId === 'EMP001');
+  assert.ok(subject, 'expected the seeded employee');
+
+  const generated = await call('/api/v1/payroll/generate', {
+    method: 'POST', token, body: { period, employeeId: subject._id, replaceDrafts: true },
+  });
+  assert.equal(generated.status, 201, generated.message);
+
+  const employeeLogin = await call('/api/v1/auth/login', {
+    method: 'POST', body: { companyCode: 'TESTCO', employeeId: 'EMP001', passcode: '1234' },
+  });
+  const applied = await call('/api/v1/leaves/apply', {
+    method: 'POST', token: employeeLogin.data.accessToken,
+    body: { leaveType: 'casual', startDate: '2027-08-10', endDate: '2027-08-10', reason: 'Undecided while payroll is approved' },
+  });
+  assert.equal(applied.status, 201, applied.message);
+
+  // The preview names it as a blocker before anyone tries.
+  const preview = await call(`/api/v1/payroll/preview?period=${period}`, { token });
+  const row = preview.data.rows.find((item) => item.employee.employeeId === 'EMP001');
+  assert.ok(row.blockers.some((item) => item.code === 'leave.pending'));
+  assert.equal(preview.data.ready, false, 'the run is not ready while a decision is outstanding');
+
+  const blocked = await call('/api/v1/payroll/bulk/approve', { method: 'POST', token, body: { period } });
+  assert.equal(blocked.status, 409, 'approval freezes the month, so it must not proceed');
+  assert.match(blocked.message, /still pending/);
+
+  // Force is available for the case where the current figures are accepted.
+  const forced = await call('/api/v1/payroll/bulk/approve', { method: 'POST', token, body: { period, force: true } });
+  assert.equal(forced.status, 200, forced.message);
+
+  await call(`/api/v1/leaves/${applied.data.leave._id}/cancel`, { method: 'POST', token: employeeLogin.data.accessToken });
+});
+
+test('readiness reports company-level blockers that stop every payslip', async () => {
+  // The QHR Demo tenant is seeded without payroll identity, so it is a genuine
+  // "not ready" fixture rather than one contrived for the test.
+  const login = await call('/api/v1/auth/admin-login', {
+    method: 'POST', body: { email: 'company-admin@qhr.com', password: 'password123' },
+  });
+  assert.equal(login.status, 200);
+
+  const preview = await call('/api/v1/payroll/preview?period=2027-05', { token: login.data.accessToken });
+  assert.equal(preview.status, 200, preview.message);
+  const codes = preview.data.company.blockers.map((item) => item.code);
+  assert.ok(codes.includes('identity.registeredAddress'), 'a payslip cannot be issued without a statutory address');
+  assert.equal(preview.data.ready, false);
+  // Every blocker says where to go and fix it.
+  assert.ok(preview.data.company.blockers.every((item) => item.fix));
+});
+
+test('managers cannot preview payroll', async () => {
+  const login = await call('/api/v1/auth/admin-login', {
+    method: 'POST', body: { email: 'manager@testco.com', password: 'password123' },
+  });
+  const blocked = await call('/api/v1/payroll/preview?period=2027-05', { token: login.data.accessToken });
+  assert.equal(blocked.status, 403);
 });

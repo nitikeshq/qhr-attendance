@@ -14,6 +14,7 @@ import PlanCatalogue from './components/PlanCatalogue'
 import CalendarWorkspace from './components/CalendarWorkspace'
 import NotificationCentre from './components/NotificationCentre'
 import CompanyProfileCard from './components/CompanyProfileCard'
+import WorkWeekCard from './components/WorkWeekCard'
 import EmployeeFormFields, { FormSection, Labelled, useEmployeeFormState, type OrgPickerProps } from './components/EmployeeForm'
 import AttendanceWorkspace from './components/AttendanceWorkspace'
 import OrgWorkspace from './components/OrgWorkspace'
@@ -865,7 +866,7 @@ export default function AdminPortal() {
             {activePage === 'wfh' && <WfhRequests requests={wfhRequests} review={reviewWfh} onAssign={() => setModal('wfh-assign')} />}
             {activePage === 'grievances' && <Grievances grievances={grievances} resolve={(id) => void resolveGrievance(id)} />}
             {activePage === 'reimbursements' && <Reimbursements token={token} reimbursements={reimbursements} role={userRole} review={(id, values) => void reviewReimbursement(id, values)} markPaid={(id, reference, paidAt) => void markReimbursementPaid(id, reference, paidAt)} />}
-            {activePage === 'payroll' && <PayrollWorkspace apiRoot={API_ROOT} token={token} role={userRole as 'hr' | 'admin'} payroll={payroll} settings={payrollSettings} salaryStructures={salaryStructures} runs={payrollRuns} summary={payrollSummary} auditLogs={payrollAuditLogs} initialSalaryEmployeeId={payrollEmployeeToEdit} onInitialSalaryConsumed={() => setPayrollEmployeeToEdit(null)} onChanged={async (message) => { setNotice(message); await loadData() }} />}
+            {activePage === 'payroll' && <PayrollWorkspace apiRoot={API_ROOT} token={token} role={userRole as 'hr' | 'admin'} payroll={payroll} settings={payrollSettings} salaryStructures={salaryStructures} runs={payrollRuns} summary={payrollSummary} auditLogs={payrollAuditLogs} initialSalaryEmployeeId={payrollEmployeeToEdit} onInitialSalaryConsumed={() => setPayrollEmployeeToEdit(null)} onOpenPage={(page) => openPage(page as PageKey)} onChanged={async (message) => { setNotice(message); await loadData() }} />}
             {activePage === 'work' && <WorkWorkspace apiRoot={API_ROOT} token={token} role={userRole as 'manager' | 'hr' | 'admin'} employees={employees} onChanged={async (message) => { setNotice(message); await loadData() }} />}
             {activePage === 'assets' && <AssetsWorkspace apiRoot={API_ROOT} token={token} role={userRole as 'manager' | 'hr' | 'admin'} employees={employees} workLocations={workLocations} onChanged={async (message) => { setNotice(message); await loadData() }} />}
             {activePage === 'desktop' && <DesktopView team={desktopTeam} />}
@@ -1389,10 +1390,14 @@ function SettingsView({ userName, apiRoot, company, token, canEditCompany, onSav
       </div>
     </Card>
 
+    {/* The work week decides who is expected in, so it comes before the rules
+        that decide what an absence costs. */}
+    <WorkWeekCard apiRoot={apiRoot} token={token} canEdit={canEditCompany} onSaved={onCompanySaved} />
+
     <Card>
       <Toolbar title="Attendance and payroll rules" />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <label className="text-sm font-semibold xl:col-span-2">Payroll deduction mode<select value={policy.payrollImpact} onChange={(event) => updatePolicy('payrollImpact', event.target.value as AttendancePolicy['payrollImpact'])} className={`${fieldClass} mt-1`}><option value="leave_only">Deduct only unpaid leave</option><option value="attendance_and_leave">Deduct attendance + leave loss</option><option value="none">Do not deduct from payroll</option></select></label>
+        <label className="text-sm font-semibold xl:col-span-2">Payroll deduction mode<select value={policy.payrollImpact} onChange={(event) => updatePolicy('payrollImpact', event.target.value as AttendancePolicy['payrollImpact'])} className={`${fieldClass} mt-1`}><option value="leave_only">Deduct only unpaid leave</option><option value="attendance_and_leave">Deduct attendance + leave loss</option><option value="none">Do not deduct from payroll</option></select><span className="mt-1 block text-xs font-normal leading-5 text-ink-soft">Weekly offs and holidays are never counted as absence in any mode.</span></label>
         <label className="text-sm font-semibold">Full day minutes<input type="number" min="1" max="1440" value={policy.fullDayMinutes} onChange={(event) => updatePolicy('fullDayMinutes', Number(event.target.value))} className={`${fieldClass} mt-1`} /></label>
         <label className="text-sm font-semibold">Half day minutes<input type="number" min="1" max={policy.fullDayMinutes} value={policy.halfDayMinutes} onChange={(event) => updatePolicy('halfDayMinutes', Number(event.target.value))} className={`${fieldClass} mt-1`} /></label>
         <label className="text-sm font-semibold">Paid leave payable<input type="number" min="0" max="1" step="0.5" value={policy.paidLeavePayableDays} onChange={(event) => updatePolicy('paidLeavePayableDays', Number(event.target.value))} className={`${fieldClass} mt-1`} /></label>

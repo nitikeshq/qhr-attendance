@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import PayrollPreviewCard from "./PayrollPreviewCard";
 import {
   Check,
   ChevronLeft,
@@ -356,6 +357,8 @@ type Props = {
   auditLogs: PayrollAuditLog[];
   initialSalaryEmployeeId?: string | null;
   onInitialSalaryConsumed?: () => void;
+  /** Lets a readiness blocker link straight to the page that fixes it. */
+  onOpenPage?: (page: string) => void;
   onChanged: (message: string) => Promise<void>;
 };
 
@@ -716,6 +719,7 @@ export default function PayrollWorkspace({
   auditLogs,
   initialSalaryEmployeeId,
   onInitialSalaryConsumed,
+  onOpenPage,
   onChanged,
 }: Props) {
   const [tab, setTab] = useState<
@@ -957,6 +961,10 @@ export default function PayrollWorkspace({
 
       {tab === "register" && (
         <>
+          {/* Confirm before committing. Nothing here writes, so re-checking after
+              a fix is free. */}
+          <PayrollPreviewCard apiRoot={apiRoot} token={token} period={period} onOpenPage={onOpenPage} />
+
           <Card>
             <div className="mb-4">
               <h2 className="text-lg font-bold">Run payroll</h2>

@@ -20,6 +20,7 @@ const {
   normalizeAttendancePolicy,
   normalizeHolidays,
   normalizeLeaveTypes,
+  periodRange,
 } = require('../utils/attendancePolicy');
 const {
   PERIOD_PATTERN,
@@ -44,10 +45,17 @@ const {
   unlinkClaimAdjustment,
 } = require('../utils/reimbursements');
 const { ensureLocationLinks, locationsNeedReconcile, reconcileCompanyLocations } = require('../utils/locationLinks');
+const { migrateVerificationCodes } = require('../utils/verification');
+const { emailConfigured, ensureEmailCollections } = require('../services/mailer');
+const { previewPayroll } = require('../utils/payrollPreview');
 
 function ensureCollections(data) {
   data.demoRequests ||= [];
   data.contactMessages ||= [];
+  ensureEmailCollections(data);
+  // Registration codes used to be stored in plaintext and returned to the caller.
+  // Any that survive are hashed and expired, so an exposed code cannot be used.
+  migrateVerificationCodes(data);
   ensurePayrollCollections(data);
   data.projects ||= [];
   data.tasks ||= [];
@@ -201,6 +209,35 @@ adminRouter.get('/dashboard', roleRequired('manager', 'hr', 'admin'), async (req
       },
       recentAttendance: attendance.slice(-5).reverse(),
       pendingLeaves: pendingLeaves.slice(-5).reverse(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * The outbound email queue.
+ *
+ * Verification codes and one-time passwords are no longer returned to the caller,
+ * so without a configured transport a tenant would be stranded mid-registration.
+ * This lets the platform owner see what is waiting to be delivered and relay it
+ * until SMTP is set up. Restricted to super_admin: the bodies contain codes.
+ */
+adminRouter.get('/outbound-emails', roleRequired('super_admin'), async (req, res, next) => {
+  try {
+    const data = await req.app.locals.store.read();
+    ensureCollections(data);
+    const status = String(req.query.status || '').trim();
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
+    const rows = (data.outboundEmails || [])
+      .filter((item) => !status || item.status === status)
+      .slice(-limit)
+      .reverse();
+    return ok(res, {
+      transportConfigured: emailConfigured(),
+      pending: (data.outboundEmails || []).filter((item) => item.status === 'pending').length,
+      failed: (data.outboundEmails || []).filter((item) => item.status === 'failed').length,
+      emails: rows,
     });
   } catch (error) {
     return next(error);
@@ -1219,6 +1256,35 @@ async function generatePayroll(req, res, next) {
   }
 }
 
+/**
+ * Dry run. Same computation as generation, nothing written.
+ *
+ * `view=exceptions` returns only the employees who differ from a clean full
+ * month, which on a large payroll is the difference between reviewing fifteen
+ * rows and reviewing two hundred.
+ */
+payrollRouter.get('/preview', roleRequired('hr', 'admin'), async (req, res, next) => {
+  try {
+    const period = String(req.query.period || '').trim() || new Date().toISOString().slice(0, 7);
+    if (!PERIOD_PATTERN.test(period)) return fail(res, 400, 'Payroll period must use YYYY-MM format');
+
+    const data = await req.app.locals.store.read();
+    ensureCollections(data);
+    const company = data.companies.find((item) => item._id === req.company._id);
+    if (!company) return fail(res, 404, 'Company not found');
+
+    const preview = previewPayroll(data, { company, period });
+    const view = String(req.query.view || 'all').toLowerCase();
+    const rows = view === 'exceptions'
+      ? preview.rows.filter((row) => row.reasons.length > 0 || row.blockers.length > 0)
+      : preview.rows;
+
+    return ok(res, { ...preview, view, rows });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 payrollRouter.post('/generate', roleRequired('hr', 'admin'), generatePayroll);
 payrollRouter.post('/bulk-generate', roleRequired('hr', 'admin'), generatePayroll);
 
@@ -1253,6 +1319,29 @@ payrollRouter.post('/bulk/approve', roleRequired('admin'), async (req, res, next
       ensureCollections(data);
       const settings = normalizePayrollSettings(req.company);
       const records = data.payroll.filter((item) => item.companyId === req.company._id && item.period === period && ['draft', 'pending_approval'].includes(item.status));
+
+      // Approval freezes the month: adjustments and recalculation are refused
+      // afterwards. A leave still awaiting a decision would therefore produce a
+      // payslip that is knowably wrong and no longer fixable in place.
+      if (req.body?.force !== true) {
+        const subjects = new Set(records.map((item) => item.employeeId));
+        const range = periodRange(period);
+        const from = range.start.toISOString().slice(0, 10);
+        const to = range.end.toISOString().slice(0, 10);
+        const stalled = (data.leaves || []).filter((leave) => (
+          subjects.has(leave.employeeId)
+          && leave.status === 'pending'
+          && String(leave.startDate).slice(0, 10) <= to
+          && String(leave.endDate || leave.startDate).slice(0, 10) >= from
+        ));
+        if (stalled.length) {
+          return {
+            error: `${stalled.length} leave request(s) covering ${period} are still pending. Decide them first, or approve with force to accept the current figures.`,
+            status: 409,
+          };
+        }
+      }
+
       for (const payslip of records) {
         payslip.status = 'approved';
         payslip.approvedBy = req.user._id;
@@ -1263,9 +1352,10 @@ payrollRouter.post('/bulk/approve', roleRequired('admin'), async (req, res, next
         payrollAudit(data, req, 'payroll.approved', payslip, { bulk: true, published: Boolean(payslip.publishedAt) });
       }
       for (const runId of new Set(records.map((item) => item.runId).filter(Boolean))) syncPayrollRun(data, runId);
-      return records.length;
+      return { count: records.length };
     });
-    return ok(res, { count: result, message: `${result} payroll record(s) approved${normalizePayrollSettings(req.company).publishOnApproval ? ' and published' : ''}` });
+    if (result.error) return fail(res, result.status || 409, result.error);
+    return ok(res, { count: result.count, message: `${result.count} payroll record(s) approved${normalizePayrollSettings(req.company).publishOnApproval ? ' and published' : ''}` });
   } catch (error) {
     return next(error);
   }

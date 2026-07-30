@@ -1025,7 +1025,10 @@ test('attendance policy, WFH assignment, and unpaid leave feed payroll loss-of-p
 
   const editedEmployee = await request(`/api/v1/employees/${employee._id}`, {
     method: 'PATCH', token,
-    body: { lastWorkingDate: '2026-07-04' },
+    // Window runs Wed 1 to Mon 6 July 2026, so it spans a weekend on purpose:
+    // Saturday and Sunday are weekly offs and must be paid, while the unpaid
+    // leave below falls on a working day and must not be.
+    body: { lastWorkingDate: '2026-07-06' },
   });
   assert.equal(editedEmployee.response.status, 200);
 
@@ -1071,7 +1074,7 @@ test('attendance policy, WFH assignment, and unpaid leave feed payroll loss-of-p
   assert.equal(employeeLogin.response.status, 200);
   const leave = await request('/api/v1/leaves/apply', {
     method: 'POST', token: employeeLogin.json.data.accessToken,
-    body: { leaveType: 'unpaid', startDate: '2026-07-04', endDate: '2026-07-04', reason: 'Unpaid absence' },
+    body: { leaveType: 'unpaid', startDate: '2026-07-06', endDate: '2026-07-06', reason: 'Unpaid absence' },
   });
   assert.equal(leave.response.status, 201);
   const approvedLeave = await request(`/api/v1/leaves/${leave.json.data.leave._id}/approve`, {
@@ -1084,12 +1087,16 @@ test('attendance policy, WFH assignment, and unpaid leave feed payroll loss-of-p
   assert.equal(team.response.status, 200);
   const row = team.json.data.attendances.find((item) => item.employee.employeeId === 'ATT001');
   assert.equal(row.day.status, 'work_from_home');
-  assert.equal(row.summary.eligibleDays, 4);
-  assert.equal(row.summary.payableDays, 2.5);
+  assert.equal(row.summary.eligibleDays, 6);
+  // Present 1 + half 0.5 + WFH 1 + Saturday 1 + Sunday 1 + unpaid leave 0.
+  assert.equal(row.summary.payableDays, 4.5);
   assert.equal(row.summary.lossOfPayDays, 1.5);
   assert.equal(row.summary.halfDayDays, 1);
   assert.equal(row.summary.workFromHomeDays, 1);
   assert.equal(row.summary.unpaidLeaveDays, 1);
+  // A non-working day is never an absence, whatever the payable-day method.
+  assert.equal(row.summary.weeklyOffDays, 8);
+  assert.equal(row.summary.unnoticedAbsenceDays, 0);
 
   const generated = await request('/api/v1/payroll/generate', {
     method: 'POST', token,
@@ -1098,10 +1105,11 @@ test('attendance policy, WFH assignment, and unpaid leave feed payroll loss-of-p
   assert.equal(generated.response.status, 201);
   const payslip = generated.json.data.payroll[0];
   assert.equal(payslip.attendanceSummary.payrollImpact, 'attendance_and_leave');
-  assert.equal(payslip.attendanceSummary.payableDays, 2.5);
+  assert.equal(payslip.attendanceSummary.payableDays, 4.5);
   assert.equal(payslip.attendanceSummary.lossOfPayDays, 1.5);
-  assert.equal(payslip.gross, 2419.35);
-  assert.equal(payslip.net, 2419.35);
+  // 30000 prorated over 31 calendar days at 4.5 payable days.
+  assert.equal(payslip.gross, 4354.84);
+  assert.equal(payslip.net, 4354.84);
 });
 
 test('landing demo and contact forms persist leads', async () => {

@@ -1,3 +1,5 @@
+const { classifyDate, normalizeWorkWeek } = require('./workWeek');
+
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 function amount(value) {
@@ -58,6 +60,8 @@ function defaultAttendancePolicy(company = {}) {
     paidLeavePayableDays: 1,
     unpaidLeavePayableDays: 0,
     halfDayPayableDays: 0.5,
+    // A weekly off is part of a monthly salary, so it pays in full by default.
+    weeklyOffPayableDays: 1,
     unnoticedAbsencePayableDays: 0,
     wfhPayableDays: 1,
     wfhRequiresCheckIn: false,
@@ -88,6 +92,7 @@ function normalizeAttendancePolicy(company = {}, input = company?.settings?.atte
     paidLeavePayableDays: clamp(Number(input.paidLeavePayableDays ?? defaults.paidLeavePayableDays), 0, 1),
     unpaidLeavePayableDays: clamp(Number(input.unpaidLeavePayableDays ?? defaults.unpaidLeavePayableDays), 0, 1),
     halfDayPayableDays: clamp(Number(input.halfDayPayableDays ?? defaults.halfDayPayableDays), 0, 1),
+    weeklyOffPayableDays: clamp(Number(input.weeklyOffPayableDays ?? defaults.weeklyOffPayableDays), 0, 1),
     unnoticedAbsencePayableDays: clamp(Number(input.unnoticedAbsencePayableDays ?? defaults.unnoticedAbsencePayableDays), 0, 1),
     wfhPayableDays: clamp(Number(input.wfhPayableDays ?? defaults.wfhPayableDays), 0, 1),
     wfhRequiresCheckIn: Boolean(input.wfhRequiresCheckIn),
@@ -130,12 +135,29 @@ function leaveTreatment(company, leave) {
   return unpaid ? 'unpaid' : 'paid';
 }
 
+/** The company work week, falling back to the legacy weekday list. */
+function workWeekFor(company, settings) {
+  return normalizeWorkWeek(
+    company?.settings?.workWeek || settings?.workWeek,
+    Array.isArray(settings?.workingDays) && settings.workingDays.length ? settings.workingDays : [1, 2, 3, 4, 5],
+  );
+}
+
+/**
+ * The dates that form the payable-day denominator.
+ *
+ * `workingDayMethod` controls the denominator only, never whether a weekly off
+ * exists. Under `working_days` the denominator is the actual working days; under
+ * the other methods it stays every date of the month, so existing tenants keep
+ * the same divisor. Weekly offs are recognised in all three cases by the day
+ * classification below.
+ */
 function scheduledDatesForPeriod(company, settings, start, end) {
   const allDates = datesBetween(start, end);
   const holidays = new Set(normalizeHolidays(company?.holidays || []).map((item) => item.date));
   if (settings.workingDayMethod === 'working_days') {
-    const workingDays = Array.isArray(settings.workingDays) && settings.workingDays.length ? settings.workingDays.map(Number) : [1, 2, 3, 4, 5];
-    return allDates.filter((date) => workingDays.includes(date.getUTCDay()) && !holidays.has(dateKey(date)));
+    const workWeek = workWeekFor(company, settings);
+    return allDates.filter((date) => classifyDate(workWeek, date) !== 'off' && !holidays.has(dateKey(date)));
   }
   return allDates;
 }
@@ -166,6 +188,7 @@ function buildAttendanceSummary(data, company, employee, period, payrollSettings
   };
   const policy = normalizeAttendancePolicy(company);
   const { start, end, daysInMonth } = periodRange(period);
+  const workWeek = workWeekFor(company, settings);
   const scheduledDates = scheduledDatesForPeriod(company, settings, start, end);
   const scheduledKeys = new Set(scheduledDates.map(dateKey));
   const joiningDate = employee?.dateOfJoining ? startOfDay(employee.dateOfJoining) : start;
@@ -250,6 +273,14 @@ function buildAttendanceSummary(data, company, employee, period, payrollSettings
       payable = policy.deductHalfDay ? policy.halfDayPayableDays : 1;
       counters.presentDays += amount(policy.halfDayPayableDays * dailyScale);
       counters.halfDayDays += dailyScale;
+    } else if (classifyDate(workWeek, date) === 'off') {
+      // A weekly off is paid and is not an absence. Attendance, leave and WFH are
+      // all checked first, so somebody who genuinely worked a Sunday still counts
+      // as present, and nobody burns leave on their own day off.
+      status = 'weekly_off';
+      source = 'work_week';
+      payable = policy.weeklyOffPayableDays;
+      counters.weeklyOffDays += dailyScale;
     } else if (attendanceStatus === 'absent') {
       status = 'absent';
       payable = policy.deductUnnoticedAbsence ? policy.unnoticedAbsencePayableDays : 1;
@@ -303,7 +334,12 @@ function buildAttendanceSummary(data, company, employee, period, payrollSettings
       : clamp(amount(counters.payableDays), 0, eligibleDays);
   const lossOfPayDays = amount(Math.max(0, eligibleDays - payableDays));
   const allDates = datesBetween(start, end);
-  const weeklyOffDays = amount(allDates.filter((date) => !scheduledKeys.has(dateKey(date)) && !rawHolidayKeys.has(dateKey(date))).length * dailyScale);
+  // Counted from the work week itself rather than from whatever the denominator
+  // happened to exclude, so the figure is the same under every method. It used to
+  // report zero for calendar_days, which made a weekend look like nothing at all.
+  const weeklyOffDays = amount(allDates.filter((date) => (
+    !rawHolidayKeys.has(dateKey(date)) && classifyDate(workWeek, date) === 'off'
+  )).length * dailyScale);
   const holidayDays = amount(allDates.filter((date) => rawHolidayKeys.has(dateKey(date))).length * dailyScale);
 
   return {
@@ -338,6 +374,8 @@ module.exports = {
   dateKey,
   datesBetween,
   defaultAttendancePolicy,
+  scheduledDatesForPeriod,
+  workWeekFor,
   normalizeAttendancePolicy,
   normalizeHolidays,
   normalizeLeaveTypes,

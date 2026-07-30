@@ -17,6 +17,15 @@ const {
   normalizeHolidays,
   normalizeLeaveTypes,
 } = require('../utils/attendancePolicy');
+const {
+  canResend,
+  checkVerification,
+  consumeVerification,
+  exposeVerificationCode,
+  issueVerification,
+  verificationEmail,
+} = require('../utils/verification');
+const { queueEmail } = require('../services/mailer');
 
 const router = express.Router();
 
@@ -71,7 +80,6 @@ router.post('/register', async (req, res, next) => {
       const now = nowIso();
       const companyId = newId('company');
       const adminId = newId('emp');
-      const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
       // Everything the registration wizard collected is written into the company
       // profile so the onboarding checklist starts prefilled instead of blank.
       const registeredAddress = trimmedText(body.registeredAddress || body.addressLine || body.address);
@@ -99,7 +107,6 @@ router.post('/register', async (req, res, next) => {
         isVerified: false,
         verificationStatus: 'pending',
         status: 'pending',
-        verificationCode,
         subscription: {
           plan: freePlan?.name || 'Free',
           pricePerUser: Math.max(0, Number(freePlan?.pricePerUser) || 0),
@@ -201,6 +208,19 @@ router.post('/register', async (req, res, next) => {
         },
       });
 
+      // Hashed, time-limited, and delivered by email. It is deliberately not
+      // part of the response: returning it would verify nothing.
+      const verificationCode = issueVerification(company);
+      const message = verificationEmail(company, verificationCode);
+      queueEmail(data, {
+        to: company.email,
+        subject: message.subject,
+        body: message.body,
+        kind: 'company_verification',
+        companyId: company._id,
+        dedupeKey: `verify:${company._id}:${company.verification.sentAt}`,
+      });
+
       return { company, admin, verificationCode };
     });
 
@@ -208,8 +228,10 @@ router.post('/register', async (req, res, next) => {
     return created(res, {
       company: publicCompany(result.company),
       admin: publicEmployee(result.admin, result.company),
-      verificationCode: result.verificationCode,
-      message: 'Company registered. Use the verification code to activate it locally.',
+      // Test and local development only. Never present in production.
+      ...(exposeVerificationCode() ? { verificationCode: result.verificationCode } : {}),
+      verificationSentTo: result.company.email,
+      message: `Company registered. We sent a verification code to ${result.company.email}.`,
     });
   } catch (error) {
     return next(error);
@@ -223,12 +245,17 @@ async function verifyCompany(req, res, next) {
       const company = data.companies.find((item) => normalizeCode(item.code) === normalizeCode(companyCode || code));
       if (!company) return { error: 'Company not found' };
 
-      const provided = String(verificationCode || '').trim();
-      if (!provided) return { error: 'Verification code is required' };
-      if (company.verificationCode && provided !== company.verificationCode) {
-        return { error: 'Verification code is incorrect' };
+      // Already verified: repeating the call is harmless and must not require a
+      // code that no longer exists.
+      if (company.isVerified && company.verificationStatus === 'verified') return { company };
+
+      const outcome = checkVerification(company, verificationCode || code);
+      if (outcome.error) {
+        company.updatedAt = nowIso();
+        return { error: outcome.error, status: outcome.status };
       }
 
+      consumeVerification(company);
       company.isVerified = true;
       company.verificationStatus = 'verified';
       company.status = 'active';
@@ -236,7 +263,7 @@ async function verifyCompany(req, res, next) {
       return { company };
     });
 
-    if (result.error) return fail(res, 400, result.error);
+    if (result.error) return fail(res, result.status || 400, result.error);
     return ok(res, {
       company: publicCompany(result.company),
       message: 'Company verified successfully',
@@ -248,6 +275,49 @@ async function verifyCompany(req, res, next) {
 
 router.post('/verify', verifyCompany);
 router.post('/verify-email', verifyCompany);
+
+/**
+ * Issues a fresh code. Needed because codes now expire and lock after repeated
+ * wrong guesses, so without this a tenant could be stranded mid-registration.
+ * The response never reveals whether the company exists, so this cannot be used
+ * to enumerate tenants.
+ */
+router.post('/resend-verification', async (req, res, next) => {
+  try {
+    const { companyCode, code } = req.body || {};
+    const wanted = normalizeCode(companyCode || code);
+    const result = await req.app.locals.store.update((data) => {
+      const company = data.companies.find((item) => normalizeCode(item.code) === wanted);
+      if (!company) return { silent: true };
+      if (company.isVerified && company.verificationStatus === 'verified') return { silent: true };
+
+      const gate = canResend(company);
+      if (!gate.allowed) return { error: `Please wait ${gate.retryAfter} second(s) before requesting another code`, status: 429 };
+
+      const fresh = issueVerification(company);
+      company.verification.resendCount += 1;
+      const message = verificationEmail(company, fresh);
+      queueEmail(data, {
+        to: company.email,
+        subject: message.subject,
+        body: message.body,
+        kind: 'company_verification',
+        companyId: company._id,
+        dedupeKey: `verify:${company._id}:${company.verification.sentAt}`,
+      });
+      company.updatedAt = nowIso();
+      return { company, verificationCode: fresh };
+    });
+
+    if (result.error) return fail(res, result.status || 429, result.error);
+    return ok(res, {
+      ...(result.company && exposeVerificationCode() ? { verificationCode: result.verificationCode } : {}),
+      message: 'If that company is awaiting verification, a new code is on its way to the registered email address.',
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
 
 router.patch('/settings', authRequired, roleRequired('hr', 'admin'), async (req, res, next) => {
   try {

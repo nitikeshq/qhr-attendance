@@ -1,6 +1,6 @@
 const fs = require('fs/promises');
 const path = require('path');
-const { createSeedData } = require('./seedData');
+const { createInitialData, createSeedData } = require('./seedData');
 
 const RETRYABLE_RENAME_CODES = new Set(['EPERM', 'EACCES', 'EBUSY']);
 
@@ -44,7 +44,9 @@ class JsonStore {
         error.message = `Could not load QHR data file ${this.filePath}: ${error.message}`;
         throw error;
       }
-      this.data = createSeedData();
+      // Demo tenants in development and tests; a single bootstrap administrator
+      // in production, because the demo accounts have published passwords.
+      this.data = createInitialData();
       await this.save();
     }
 

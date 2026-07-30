@@ -259,6 +259,26 @@ export default function RegisterPage() {
     setStepIndex(4)
   }
 
+  const handleResend = async () => {
+    setStatus({ state: 'loading', message: 'Sending a new activation code...' })
+    const result = await postJson('/companies/resend-verification', { companyCode: createdCode })
+
+    if (!result.ok) {
+      // A cooldown reply is guidance, not a failure the user caused.
+      setStatus({ state: 'error', message: result.message })
+      return
+    }
+
+    const returnedCode = String(result.data.verificationCode || '')
+    if (returnedCode) {
+      setIssuedCode(returnedCode)
+      setVerificationCode(returnedCode)
+    } else {
+      setVerificationCode('')
+    }
+    setStatus({ state: 'success', message: `A new code is on its way to ${form.adminEmail}.` })
+  }
+
   const handleVerify = async () => {
     if (verificationCode.length !== 6) {
       setStatus({ state: 'error', message: 'Enter all six digits of the activation code.' })
@@ -666,14 +686,24 @@ export default function RegisterPage() {
                       value={verificationCode}
                     />
                   </div>
-                  <p className="mt-4 flex items-center gap-2 text-xs text-slate-500">
+                  {/* Codes now expire after 30 minutes and lock after five wrong
+                      guesses, so a way to get a fresh one is essential. */}
+                  <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                     <RotateCcw className="h-3.5 w-3.5 shrink-0" />
-                    Code not arrived? Check spam, or{' '}
+                    <span>Code not arrived, or expired?</span>
+                    <button
+                      className="font-semibold text-blue-700 underline underline-offset-2 disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline"
+                      disabled={status.state === 'loading'}
+                      onClick={() => void handleResend()}
+                      type="button"
+                    >
+                      Send a new code
+                    </button>
+                    <span>or</span>
                     <Link className="font-semibold text-blue-700 underline underline-offset-2" href="/contact">
                       contact support
                     </Link>
-                    .
-                  </p>
+                  </div>
                 </div>
 
                 {issuedCode && (

@@ -1,4 +1,5 @@
 const { hashSecret } = require('../utils/passwords');
+const { generateOneTimePassword } = require('../utils/employeeProfile');
 const { addDays, dateKey, nowIso, startOfDayIso } = require('../utils/records');
 const { normalizeAttendancePolicy } = require('../utils/attendancePolicy');
 const {
@@ -659,6 +660,106 @@ function createSeedData() {
   };
 }
 
+/**
+ * A production first boot, with one platform administrator and nothing else.
+ *
+ * The demo tenants exist so tests and local development have something to work
+ * against, but they ship with published passwords. A real deployment must not
+ * create them, so an empty data file in production yields only an account whose
+ * password comes from the environment and must be changed on first sign-in.
+ */
+function createBootstrapData() {
+  const now = nowIso();
+  const password = String(process.env.QHR_BOOTSTRAP_PASSWORD || '').trim() || generateOneTimePassword();
+  const generated = !process.env.QHR_BOOTSTRAP_PASSWORD;
+
+  const company = makeCompany({
+    _id: 'company_platform',
+    name: 'QHR Platform',
+    code: 'QHR',
+    email: String(process.env.QHR_BOOTSTRAP_EMAIL || 'admin@localhost').trim().toLowerCase(),
+    domain: null,
+    phone: null,
+    attendanceAreas: [],
+    holidays: [],
+  });
+  company.isVerified = true;
+  company.verificationStatus = 'verified';
+  company.status = 'active';
+
+  const admin = makeEmployee({
+    _id: 'emp_platform_admin',
+    companyId: company._id,
+    employeeId: 'SUPER001',
+    firstName: 'Platform',
+    lastName: 'Administrator',
+    email: company.email,
+    role: 'super_admin',
+    department: 'Platform',
+    designation: 'Super Admin',
+    password,
+  });
+  admin.requiresPasswordChange = true;
+
+  if (generated) {
+    // Printed once, on purpose: only the hash is stored, so this is the single
+    // opportunity to capture it.
+    console.warn([
+      '',
+      '  QHR first boot: a platform administrator was created.',
+      `    email:    ${admin.email}`,
+      `    password: ${password}`,
+      '  This is shown once. Change it immediately after signing in.',
+      '  Set QHR_BOOTSTRAP_EMAIL and QHR_BOOTSTRAP_PASSWORD to choose your own.',
+      '',
+    ].join('\n'));
+  }
+
+  return {
+    meta: { seededAt: now, seedKind: 'bootstrap' },
+    companies: [company],
+    employees: [admin],
+    attendances: [],
+    leaves: [],
+    wfhRequests: [],
+    grievances: [],
+    reimbursements: [],
+    payroll: [],
+    payrollRuns: [],
+    payrollAuditLogs: [],
+    salaryRevisions: [],
+    projects: [],
+    tasks: [],
+    assets: [],
+    assetAssignments: [],
+    desktopActivity: [],
+    desktopStates: [],
+    leaveBalances: [],
+    notifications: [],
+    demoRequests: [],
+    contactMessages: [],
+    auditLogs: [],
+    sessions: [],
+    outboundEmails: [],
+    invoices: [],
+    payments: [],
+    billingNotifications: [],
+  };
+}
+
+/**
+ * Chooses what an empty data file becomes. Demo tenants everywhere except a
+ * production deployment, which gets the bootstrap account unless demo data is
+ * explicitly requested.
+ */
+function createInitialData() {
+  const wantsDemo = String(process.env.QHR_SEED_DEMO || '').toLowerCase() === 'true';
+  if (process.env.NODE_ENV === 'production' && !wantsDemo) return createBootstrapData();
+  return createSeedData();
+}
+
 module.exports = {
+  createBootstrapData,
+  createInitialData,
   createSeedData,
 };

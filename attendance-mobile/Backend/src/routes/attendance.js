@@ -15,10 +15,14 @@ const {
 const {
   PERIOD_PATTERN,
   buildAttendanceSummary,
+  datesBetween,
   normalizeAttendancePolicy,
   normalizeHolidays,
   normalizeLeaveTypes,
+  periodRange,
+  workWeekFor,
 } = require('../utils/attendancePolicy');
+const { describePeriod, describeWeekday, normalizeWorkWeek } = require('../utils/workWeek');
 
 const router = express.Router();
 
@@ -379,11 +383,85 @@ router.get('/by-location', roleRequired('manager', 'hr', 'admin'), async (req, r
   }
 });
 
-router.get('/policy', roleRequired('hr', 'admin'), (req, res) => ok(res, {
-  policy: normalizeAttendancePolicy(req.company),
-  leaveTypes: normalizeLeaveTypes(req.company.leaveTypes || []),
-  holidays: normalizeHolidays(req.company.holidays || []),
-}));
+router.get('/policy', roleRequired('hr', 'admin'), (req, res) => {
+  const workWeek = workWeekFor(req.company, req.company.payrollSettings || {});
+  return ok(res, {
+    policy: normalizeAttendancePolicy(req.company),
+    workWeek,
+    workWeekSummary: [0, 1, 2, 3, 4, 5, 6].map((weekday) => describeWeekday(workWeek, weekday)),
+    leaveTypes: normalizeLeaveTypes(req.company.leaveTypes || []),
+    holidays: normalizeHolidays(req.company.holidays || []),
+  });
+});
+
+/**
+ * Day-by-day preview of a month under the current work week and holidays.
+ *
+ * Payable days were only ever visible after payroll had been generated. This
+ * shows the same classification beforehand, so a wrong roster is caught while it
+ * is still free to fix.
+ */
+router.get('/work-week/preview', roleRequired('hr', 'admin'), (req, res) => {
+  const period = PERIOD_PATTERN.test(String(req.query.period || ''))
+    ? String(req.query.period)
+    : dateKey().slice(0, 7);
+  const settings = req.company.payrollSettings || {};
+  const workWeek = workWeekFor(req.company, settings);
+  const { start, end, daysInMonth } = periodRange(period);
+  const holidayList = normalizeHolidays(req.company.holidays || []);
+  const holidayNames = new Map(holidayList.map((item) => [item.date, item.name]));
+  const summary = describePeriod(workWeek, datesBetween(start, end), new Set(holidayNames.keys()));
+
+  const method = settings.workingDayMethod || 'calendar_days';
+  // The denominator payroll divides by, which is deliberately independent of the
+  // roster: statutory practice often uses a flat 30 regardless of working days.
+  const payableDayBasis = method === 'fixed_30'
+    ? 30
+    : method === 'working_days'
+      ? summary.workingDays
+      : daysInMonth;
+
+  return ok(res, {
+    period,
+    calendarDays: daysInMonth,
+    workingDays: summary.workingDays,
+    halfDays: summary.halfDays,
+    weeklyOffDays: summary.weeklyOffDays,
+    holidayDays: summary.holidayDays,
+    workingDayMethod: method,
+    payableDayBasis,
+    workWeek,
+    workWeekSummary: [0, 1, 2, 3, 4, 5, 6].map((weekday) => describeWeekday(workWeek, weekday)),
+    days: summary.days.map((day) => ({ ...day, holidayName: holidayNames.get(day.date) || null })),
+  });
+});
+
+/** Saves the weekly-off pattern. Admin only: it changes what everyone is paid. */
+router.patch('/work-week', roleRequired('admin'), async (req, res, next) => {
+  try {
+    const result = await req.app.locals.store.update((data) => {
+      const company = data.companies.find((item) => item._id === req.company._id);
+      if (!company) return null;
+      const workWeek = normalizeWorkWeek(req.body?.workWeek ?? req.body, company.payrollSettings?.workingDays);
+      company.settings ||= {};
+      company.settings.workWeek = workWeek;
+      // Kept in step so anything still reading the legacy list agrees with the
+      // work week rather than contradicting it.
+      company.payrollSettings ||= {};
+      company.payrollSettings.workingDays = [0, 1, 2, 3, 4, 5, 6].filter((weekday) => workWeek[weekday] !== 'off');
+      company.updatedAt = nowIso();
+      return {
+        workWeek,
+        workingDays: company.payrollSettings.workingDays,
+        workWeekSummary: [0, 1, 2, 3, 4, 5, 6].map((weekday) => describeWeekday(workWeek, weekday)),
+      };
+    });
+    if (!result) return fail(res, 404, 'Company not found');
+    return ok(res, { ...result, message: 'Work week saved' });
+  } catch (error) {
+    return next(error);
+  }
+});
 
 router.patch('/policy', roleRequired('admin'), async (req, res, next) => {
   try {

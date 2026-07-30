@@ -864,68 +864,9 @@ function overlapDates(startDate, endDate, periodStart, periodEnd) {
   return datesBetween(start > periodStart ? start : periodStart, end < periodEnd ? end : periodEnd);
 }
 
-function attendanceSummary(data, company, employee, period, settings) {
-  const { start, end, daysInMonth } = periodRange(period);
-  const holidays = new Set((company.holidays || []).map((item) => String(item.date).slice(0, 10)));
-  const allDates = datesBetween(start, end);
-  const scheduledDates = settings.workingDayMethod === 'working_days'
-    ? allDates.filter((date) => settings.workingDays.includes(date.getUTCDay()) && !holidays.has(dateKey(date)))
-    : allDates;
-  const joiningDate = employee.dateOfJoining ? new Date(`${String(employee.dateOfJoining).slice(0, 10)}T00:00:00.000Z`) : start;
-  const leavingDate = employee.lastWorkingDate ? new Date(`${String(employee.lastWorkingDate).slice(0, 10)}T00:00:00.000Z`) : end;
-  const eligibleDates = scheduledDates.filter((date) => date >= joiningDate && date <= leavingDate);
-  const eligibleKeys = new Set(eligibleDates.map(dateKey));
-  const attendances = data.attendances.filter((item) => item.employeeId === employee._id && String(item.dateKey || item.date).slice(0, 7) === period);
-  const presentKeys = new Set(attendances.filter((item) => item.checkIn || ['present', 'half_day', 'work_from_home'].includes(item.status)).map((item) => String(item.dateKey || item.date).slice(0, 10)).filter((key) => eligibleKeys.has(key)));
-  const halfDayKeys = new Set(attendances.filter((item) => item.status === 'half_day' && eligibleKeys.has(String(item.dateKey || item.date).slice(0, 10))).map((item) => String(item.dateKey || item.date).slice(0, 10)));
-  const approvedLeaves = data.leaves.filter((item) => item.employeeId === employee._id && item.status === 'approved');
-  const paidLeaveKeys = new Set();
-  const unpaidLeaveKeys = new Set();
-  for (const leave of approvedLeaves) {
-    for (const date of overlapDates(leave.startDate, leave.endDate, start, end)) {
-      const key = dateKey(date);
-      if (!eligibleKeys.has(key)) continue;
-      if (leave.leaveType === 'unpaid') unpaidLeaveKeys.add(key);
-      else paidLeaveKeys.add(key);
-    }
-  }
-  const approvedWfh = (data.wfhRequests || []).filter((item) => item.employeeId === employee._id && item.status === 'approved');
-  const workFromHomeKeys = new Set();
-  for (const request of approvedWfh) {
-    for (const date of overlapDates(request.startDate || request.date, request.endDate || request.startDate || request.date, start, end)) {
-      const key = dateKey(date);
-      if (eligibleKeys.has(key)) {
-        workFromHomeKeys.add(key);
-        presentKeys.add(key);
-      }
-    }
-  }
-
-  const configuredDays = settings.workingDayMethod === 'fixed_30' ? 30 : scheduledDates.length;
-  const eligibilityRatio = scheduledDates.length ? eligibleDates.length / scheduledDates.length : 1;
-  const eligibleDays = amount(configuredDays * eligibilityRatio);
-  const unpaidScale = settings.workingDayMethod === 'fixed_30' && scheduledDates.length ? 30 / scheduledDates.length : 1;
-  const unpaidLeaveDays = amount(unpaidLeaveKeys.size * unpaidScale);
-  const halfDayCount = [...halfDayKeys].filter((key) => !workFromHomeKeys.has(key)).length;
-  const presentDays = amount((presentKeys.size - halfDayCount * 0.5) * unpaidScale);
-  const paidLeaveDays = amount(paidLeaveKeys.size * unpaidScale);
-  const payableDays = settings.attendanceProration
-    ? clamp(amount(presentDays + paidLeaveDays), 0, eligibleDays)
-    : clamp(amount(eligibleDays - unpaidLeaveDays), 0, eligibleDays);
-  const lossOfPayDays = amount(Math.max(unpaidLeaveDays, eligibleDays - payableDays));
-
-  return {
-    calendarDays: daysInMonth,
-    scheduledDays: configuredDays,
-    eligibleDays,
-    presentDays,
-    paidLeaveDays,
-    unpaidLeaveDays,
-    lossOfPayDays,
-    payableDays,
-    prorationApplied: settings.attendanceProration || eligibleDays < configuredDays || unpaidLeaveDays > 0,
-  };
-}
+// The duplicate attendanceSummary() that lived here was dead code: nothing
+// called it, and it carried its own copy of the scheduled-day rule, so it would
+// have drifted from attendancePolicy.js. buildAttendanceSummary is the only one.
 
 function calculateComponentValue(component, basic, gross) {
   return formulaValue(component.calculation, component.value, basic, gross);
