@@ -177,6 +177,33 @@ router.get('/', async (req, res, next) => {
     if (req.query.status) {
       employees = employees.filter((employee) => employee.status === req.query.status);
     }
+    if (req.query.departmentId) {
+      employees = employees.filter((employee) => employee.departmentId === req.query.departmentId);
+    }
+    if (req.query.managerId) {
+      employees = employees.filter((employee) => employee.managerId === req.query.managerId);
+    }
+    if (req.query.workLocationId) {
+      employees = employees.filter((employee) => employee.workLocationId === req.query.workLocationId);
+    }
+    const search = String(req.query.q || '').trim().toLowerCase();
+    if (search) {
+      employees = employees.filter((employee) => [
+        employee.name,
+        employee.firstName,
+        employee.lastName,
+        employee.employeeId,
+        employee.email,
+        employee.department,
+        employee.designation,
+      ].filter(Boolean).join(' ').toLowerCase().includes(search));
+    }
+
+    employees = [...employees].sort((left, right) => (
+      String(left.name || '').localeCompare(String(right.name || ''), undefined, { sensitivity: 'base' })
+      || String(left.employeeId || '').localeCompare(String(right.employeeId || ''), undefined, { sensitivity: 'base' })
+      || String(left._id || '').localeCompare(String(right._id || ''))
+    ));
 
     const { items, pagination } = paginate(employees, req.query);
     return ok(res, {

@@ -15,6 +15,7 @@ const authRoutes = require('./routes/auth');
 const attendanceRoutes = require('./routes/attendance');
 const companiesRoutes = require('./routes/companies');
 const desktopActivityRoutes = require('./routes/desktopActivity');
+const overtimeRoutes = require('./routes/overtime');
 const employeesRoutes = require('./routes/employees');
 const grievancesRoutes = require('./routes/grievances');
 const leavesRoutes = require('./routes/leaves');
@@ -120,6 +121,7 @@ function createApp(options = {}) {
   app.use('/api/v1/assets', assetsRoutes);
   app.use('/api/v1/onboarding', onboardingRoutes);
   app.use('/api/v1/desktop-activity', desktopActivityRoutes);
+  app.use('/api/v1/overtime', overtimeRoutes);
   app.use('/api/v1', publicRouter);
   app.use('/api/v1/admin', adminRouter);
   app.use('/api/v1/payroll', payrollRouter);

@@ -6,6 +6,7 @@ import {
   Badge,
   DataTable,
   Drawer,
+  EmployeeProfileLink,
   EmptyState,
   Field,
   KeyValue,
@@ -13,6 +14,7 @@ import {
   SectionCard,
   fieldClass,
   humanize,
+  type EmployeeProfileTab,
   type Option,
 } from './ui'
 
@@ -63,6 +65,7 @@ type Props = {
   role: 'manager' | 'hr' | 'admin'
   employees: Array<{ _id: string; name: string; employeeId: string; department?: string }>
   workLocations: Array<{ _id: string; name: string }>
+  onOpenEmployee?: (employeeId: string, tab: EmployeeProfileTab, period?: string) => void
   onChanged: (message: string) => Promise<void> | void
 }
 
@@ -142,7 +145,7 @@ function Metric({ label, value, hint }: { label: string; value: string | number;
   )
 }
 
-export default function AssetsWorkspace({ apiRoot, token, role, employees, workLocations, onChanged }: Props) {
+export default function AssetsWorkspace({ apiRoot, token, role, employees, workLocations, onOpenEmployee, onChanged }: Props) {
   const canManage = role === 'hr' || role === 'admin'
   const [assets, setAssets] = useState<Asset[]>([])
   const [summary, setSummary] = useState<AssetSummary | null>(null)
@@ -359,7 +362,7 @@ export default function AssetsWorkspace({ apiRoot, token, role, employees, workL
       humanize(asset.category),
       asset.assignedTo ? (
         <div key="holder" className="min-w-0">
-          <p className="font-semibold text-slate-800">{employeeName(asset.assignedTo)}</p>
+          <EmployeeProfileLink employeeId={asset.assignedTo._id} tab="assets" onOpen={onOpenEmployee}>{employeeName(asset.assignedTo)}</EmployeeProfileLink>
           <p className="text-xs text-slate-500">{asset.assignedTo.employeeId}</p>
         </div>
       ) : <span key="holder" className="text-slate-400">Unassigned</span>,
@@ -403,8 +406,9 @@ export default function AssetsWorkspace({ apiRoot, token, role, employees, workL
 
   const historyRows = (detail?.assignments || []).map((assignment) => [
     <div key="employee" className="min-w-0">
-      <p className="font-semibold text-slate-800">{employeeName(assignment.employee) || assignment.employeeId}</p>
-      <p className="text-xs text-slate-500">{assignment.employee?.employeeId || '-'}</p>
+      {assignment.employee?._id ? (
+        <><EmployeeProfileLink employeeId={assignment.employee._id} tab="assets" onOpen={onOpenEmployee}>{employeeName(assignment.employee) || assignment.employeeId}</EmployeeProfileLink><p className="text-xs text-slate-500">{assignment.employee.employeeId}</p></>
+      ) : <p className="font-semibold text-slate-800">{assignment.employeeId}</p>}
     </div>,
     formatDate(assignment.assignedAt),
     formatDate(assignment.expectedReturnAt),
@@ -597,7 +601,12 @@ export default function AssetsWorkspace({ apiRoot, token, role, employees, workL
                 <KeyValue label="Serial number" value={detail?.asset.serialNumber || active.serialNumber || '-'} />
                 <KeyValue label="Make and model" value={[detail?.asset.make || active.make, detail?.asset.model || active.model].filter(Boolean).join(' ') || '-'} />
                 <KeyValue label="Work location" value={detail?.asset.workLocationName || active.workLocationName || 'Not set'} />
-                <KeyValue label="Currently with" value={employeeName(detail?.asset.assignedTo || active.assignedTo) || 'Unassigned'} />
+                <KeyValue
+                  label="Currently with"
+                  value={(detail?.asset.assignedTo || active.assignedTo)?._id ? (
+                    <EmployeeProfileLink employeeId={(detail?.asset.assignedTo || active.assignedTo)!._id} tab="assets" onOpen={onOpenEmployee}>{employeeName(detail?.asset.assignedTo || active.assignedTo)}</EmployeeProfileLink>
+                  ) : 'Unassigned'}
+                />
                 <KeyValue label="Expected return" value={formatDate(detail?.asset.currentAssignment?.expectedReturnAt || active.currentAssignment?.expectedReturnAt)} />
               </div>
               {(detail?.asset.notes || active.notes) && (

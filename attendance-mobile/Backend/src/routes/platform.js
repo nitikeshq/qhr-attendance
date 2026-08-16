@@ -1203,19 +1203,31 @@ payrollRouter.get('/', roleRequired('hr', 'admin'), async (req, res, next) => {
   try {
     const data = await req.app.locals.store.read();
     ensureCollections(data);
-    const records = data.payroll.filter((item) => item.companyId === req.company._id).sort((a, b) => b.period.localeCompare(a.period) || String(b.createdAt).localeCompare(String(a.createdAt)));
+    let records = data.payroll.filter((item) => item.companyId === req.company._id).sort((a, b) => b.period.localeCompare(a.period) || String(b.createdAt).localeCompare(String(a.createdAt)));
+    const allCompanyRecords = records;
+    if (req.query.employeeId) {
+      const employee = findEmployee(data, String(req.query.employeeId), req.company._id);
+      records = employee ? records.filter((item) => item.employeeId === employee._id) : [];
+    }
+    if (PERIOD_PATTERN.test(String(req.query.period || ''))) records = records.filter((item) => item.period === req.query.period);
+    if (req.query.status) records = records.filter((item) => item.status === req.query.status);
+    const serializedPayroll = records.map((item) => serializePayslip(data, item));
+    const paged = req.query.page || req.query.limit || req.query.employeeId || req.query.status
+      ? paginate(serializedPayroll, req.query)
+      : { items: serializedPayroll, pagination: null };
     const settings = normalizePayrollSettings(req.company);
     const salaryStructures = companyEmployees(data, req.company._id).filter((employee) => employee.role !== 'super_admin').map((employee) => salaryStructureRecord(employee, settings));
     const runs = data.payrollRuns.filter((item) => item.companyId === req.company._id).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
     const auditLogs = data.payrollAuditLogs.filter((item) => item.companyId === req.company._id).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).map((item) => ({ ...item, employee: item.employeeId ? employeeRef(findEmployee(data, item.employeeId)) : null }));
-    const requestedPeriod = PERIOD_PATTERN.test(String(req.query.period || '')) ? String(req.query.period) : records[0]?.period || new Date().toISOString().slice(0, 7);
+    const requestedPeriod = PERIOD_PATTERN.test(String(req.query.period || '')) ? String(req.query.period) : allCompanyRecords[0]?.period || new Date().toISOString().slice(0, 7);
     return ok(res, {
-      payroll: records.map((item) => serializePayslip(data, item)),
+      payroll: paged.items,
+      ...(paged.pagination ? { pagination: paged.pagination } : {}),
       settings,
       salaryStructures,
       runs,
       auditLogs,
-      summary: payrollSummary(records, requestedPeriod),
+      summary: payrollSummary(allCompanyRecords, requestedPeriod),
     });
   } catch (error) {
     return next(error);

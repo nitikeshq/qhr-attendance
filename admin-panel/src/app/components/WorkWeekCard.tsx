@@ -96,6 +96,9 @@ export default function WorkWeekCard({
   const [preview, setPreview] = useState<Preview | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingMethod, setSavingMethod] = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const [savedMessage, setSavedMessage] = useState('')
   const [error, setError] = useState('')
 
   const request = useCallback(async <T,>(path: string, init: RequestInit = {}): Promise<T> => {
@@ -126,7 +129,7 @@ export default function WorkWeekCard({
         const policy = await request<{ workWeek?: WorkWeek }>('/attendance/policy')
         if (!active) return
         setWorkWeek(policy.workWeek || {})
-        await loadPreview(period)
+        setDirty(false)
       } catch (reason) {
         if (active) setError(reason instanceof Error ? reason.message : 'Could not load the work week')
       } finally {
@@ -134,10 +137,15 @@ export default function WorkWeekCard({
       }
     })()
     return () => { active = false }
-    // Only on mount and when the period changes; edits are previewed on save.
-  }, [request, loadPreview, period])
+  }, [request])
+
+  useEffect(() => {
+    void loadPreview(period)
+  }, [loadPreview, period])
 
   function setMode(weekday: number, mode: 'full' | 'half' | 'off' | 'nth') {
+    setDirty(true)
+    setSavedMessage('')
     setWorkWeek((current) => {
       const next = { ...current }
       if (mode === 'nth') {
@@ -153,6 +161,8 @@ export default function WorkWeekCard({
   }
 
   function toggleOccurrence(weekday: number, occurrence: Ordinal) {
+    setDirty(true)
+    setSavedMessage('')
     setWorkWeek((current) => {
       const rule = current[weekday]
       if (!isNth(rule)) return current
@@ -164,6 +174,8 @@ export default function WorkWeekCard({
   }
 
   function setOtherwise(weekday: number, otherwise: DayKind) {
+    setDirty(true)
+    setSavedMessage('')
     setWorkWeek((current) => {
       const rule = current[weekday]
       if (!isNth(rule)) return current
@@ -174,10 +186,17 @@ export default function WorkWeekCard({
   async function save() {
     setSaving(true)
     setError('')
+    setSavedMessage('')
     try {
-      await request('/attendance/work-week', { method: 'PATCH', body: JSON.stringify({ workWeek }) })
+      const saved = await request<{ workWeek?: WorkWeek }>('/attendance/work-week', {
+        method: 'PATCH',
+        body: JSON.stringify({ workWeek }),
+      })
+      setWorkWeek(saved.workWeek || workWeek)
+      setDirty(false)
+      setSavedMessage('Saved and active')
       await loadPreview(period)
-      await onSaved?.('Work week saved.')
+      await onSaved?.('Work week saved and active.')
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not save the work week')
     } finally {
@@ -199,6 +218,25 @@ export default function WorkWeekCard({
       ? 'Actual working days'
       : 'Calendar days'
 
+  /**
+   * The salary-day basis lived only in Payroll settings, so a company that had set
+   * its weekly offs here still saw "31 / 31" on a payslip and reasonably concluded
+   * the roster was being ignored. The choice belongs next to the roster it divides.
+   */
+  async function saveMethod(method: string) {
+    setSavingMethod(true)
+    setError('')
+    try {
+      await request('/payroll/settings', { method: 'PATCH', body: JSON.stringify({ workingDayMethod: method }) })
+      await loadPreview(period)
+      await onSaved?.('Salary-day basis updated.')
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not change the salary-day basis')
+    } finally {
+      setSavingMethod(false)
+    }
+  }
+
   if (loading) {
     return (
       <SectionCard title="Work week" description="Loading the weekly pattern">
@@ -215,17 +253,29 @@ export default function WorkWeekCard({
       description="Which days your company works. This decides who is expected in, so a non-working day is never counted as an absence."
       icon={<CalendarDays className="h-4 w-4" />}
       actions={canEdit ? (
-        <button
-          type="button" onClick={() => void save()} disabled={saving}
-          className="gradient-button flex items-center gap-2 rounded-md px-3.5 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Save work week
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Save state is explicit: an edited pattern that was never saved used to
+              look identical to a saved one, which is why saving felt broken. */}
+          <span className={`text-xs font-semibold ${dirty ? 'text-warning' : 'text-ink-soft'}`}>
+            {dirty ? 'Unsaved changes' : savedMessage || 'All changes saved'}
+          </span>
+          <button
+            type="button" onClick={() => void save()} disabled={saving || !dirty}
+            className="gradient-button flex items-center gap-2 rounded-md px-3.5 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Save work week
+          </button>
+        </div>
       ) : undefined}
     >
       {error && (
         <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-danger-soft px-3.5 py-2.5 text-sm font-medium text-danger">{error}</p>
+      )}
+      {dirty && (
+        <p className="mb-4 rounded-lg border border-amber-200 bg-warning-soft px-3.5 py-2.5 text-sm font-medium text-warning">
+          These weekday changes are not saved yet. The month preview below still shows the saved pattern until you save.
+        </p>
       )}
 
       <div className="space-y-2">
@@ -301,12 +351,26 @@ export default function WorkWeekCard({
             <p className="text-sm font-bold text-ink">Month preview</p>
             <p className="mt-0.5 text-xs text-ink-soft">Saved pattern applied to a month, with the day counts payroll will use.</p>
           </div>
-          <Field label="Month">
-            <input
-              type="month" value={period} onChange={(event) => setPeriod(event.target.value || currentPeriod())}
-              className={fieldClass}
-            />
-          </Field>
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Salary-day basis" hint="What payroll divides a monthly salary by.">
+              <select
+                value={preview?.workingDayMethod || 'working_days'}
+                disabled={!canEdit || savingMethod}
+                onChange={(event) => void saveMethod(event.target.value)}
+                className={fieldClass}
+              >
+                <option value="working_days">Actual working days (excludes weekly offs and holidays)</option>
+                <option value="calendar_days">Calendar days (weekly offs stay paid and counted)</option>
+                <option value="fixed_30">Fixed 30 days</option>
+              </select>
+            </Field>
+            <Field label="Month">
+              <input
+                type="month" value={period} onChange={(event) => setPeriod(event.target.value || currentPeriod())}
+                className={fieldClass}
+              />
+            </Field>
+          </div>
         </div>
 
         {preview && (

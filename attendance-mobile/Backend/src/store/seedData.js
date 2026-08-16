@@ -2,6 +2,7 @@ const { hashSecret } = require('../utils/passwords');
 const { generateOneTimePassword } = require('../utils/employeeProfile');
 const { addDays, dateKey, nowIso, startOfDayIso } = require('../utils/records');
 const { normalizeAttendancePolicy } = require('../utils/attendancePolicy');
+const { normalizeRequestOptions } = require('../utils/requestOptions');
 const {
   issuePayslip,
   normalizePayrollSettings,
@@ -98,6 +99,9 @@ function makeCompany(overrides) {
       },
     ],
     leaveTypes: overrides.leaveTypes || baseLeaveTypes(),
+    // Sensible starting categories so a new company never faces an empty dropdown.
+    // They are editable, and every one can be renamed or deactivated.
+    requestOptions: overrides.requestOptions || normalizeRequestOptions(),
     holidays: overrides.holidays || [
       { date: '2026-01-26', name: 'Republic Day' },
       { date: '2026-08-15', name: 'Independence Day' },

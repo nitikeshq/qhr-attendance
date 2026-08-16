@@ -26,6 +26,7 @@ const {
   verificationEmail,
 } = require('../utils/verification');
 const { queueEmail } = require('../services/mailer');
+const { normalizeRequestOptions } = require('../utils/requestOptions');
 
 const router = express.Router();
 
@@ -140,6 +141,7 @@ router.post('/register', async (req, res, next) => {
           desktopMonitoring: true,
           requirePhotoAttendance: false,
           attendancePolicy: normalizeAttendancePolicy({ payrollSettings: body.payrollSettings || {} }, body.attendancePolicy || {}),
+
         },
         profile: registrationProfile,
         // The registered address is also the natural first work location, so the
@@ -166,7 +168,10 @@ router.post('/register', async (req, res, next) => {
         designations: [],
         calendarEvents: [],
         attendanceAreas: [],
-        leaveTypes: defaultLeaveTypes(),
+        // Normalized on the way in, so a registered tenant and a seeded one hold the
+        // same shape rather than one storing raw literals.
+        leaveTypes: normalizeLeaveTypes(defaultLeaveTypes()),
+        requestOptions: normalizeRequestOptions(),
         holidays: [],
         createdAt: now,
         updatedAt: now,
@@ -314,6 +319,46 @@ router.post('/resend-verification', async (req, res, next) => {
       ...(result.company && exposeVerificationCode() ? { verificationCode: result.verificationCode } : {}),
       message: 'If that company is awaiting verification, a new code is on its way to the registered email address.',
     });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * Everything an employee picks from when raising a request, in one call.
+ *
+ * The mobile app used free-text inputs for leave type and expense category, so a
+ * person had to know the company's vocabulary and type it correctly. This is the
+ * single source those dropdowns read.
+ */
+router.get('/request-options', authRequired, async (req, res, next) => {
+  try {
+    const options = normalizeRequestOptions(req.company);
+    return ok(res, {
+      leaveTypes: normalizeLeaveTypes(req.company.leaveTypes || [])
+        .map((type) => ({ ...type, label: type.name, unpaid: type.paid === false })),
+      reimbursementCategories: options.reimbursementCategories.filter((item) => item.active),
+      grievanceCategories: options.grievanceCategories.filter((item) => item.active),
+      allowOtherReimbursementCategory: options.allowOtherReimbursementCategory,
+      allowOtherGrievanceCategory: options.allowOtherGrievanceCategory,
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/** Admin owns the lists. HR may read them, only an admin may change them. */
+router.patch('/request-options', authRequired, roleRequired('admin'), async (req, res, next) => {
+  try {
+    const result = await req.app.locals.store.update((data) => {
+      const company = data.companies.find((item) => item._id === req.company._id);
+      if (!company) return null;
+      company.requestOptions = normalizeRequestOptions(company, req.body || {});
+      company.updatedAt = nowIso();
+      return company.requestOptions;
+    });
+    if (!result) return fail(res, 404, 'Company not found');
+    return ok(res, { requestOptions: result, message: 'Request options saved' });
   } catch (error) {
     return next(error);
   }

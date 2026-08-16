@@ -211,6 +211,58 @@ test.describe('work week editor', () => {
   })
 })
 
+test.describe('employee profile', () => {
+  test('an employee can be opened, and each tab loads on demand', async ({ page }) => {
+    const problems = captureFailures(page)
+    await signIn(page, CREDENTIALS.email, CREDENTIALS.password)
+
+    await page.goto('/?page=employees')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Employees')
+
+    // The View action is the entry point that was missing entirely.
+    await page.getByRole('button', { name: 'View' }).first().click()
+    await expect(page).toHaveURL(/page=employee-detail/)
+    await expect(page.getByRole('button', { name: /Back to employees/ })).toBeVisible()
+
+    // Overview is shown first, without fetching the other sections.
+    await expect(page.getByText('Placement')).toBeVisible()
+    await expect(page.getByText('Reporting manager')).toBeVisible()
+
+    // The profile tabs carry role="tab", so they are addressed as tabs. Targeting
+    // them by button name would hit the sidebar nav item of the same label and
+    // navigate away instead of switching section.
+    const tabs = page.locator('main').getByRole('tab')
+    for (const label of ['Attendance', 'Leave']) {
+      await tabs.filter({ hasText: label }).first().click()
+      await expect(page.locator('main').getByText(/Loading|Scheduled|No leave requests|left|Nothing recorded/).first())
+        .toBeVisible({ timeout: 20000 })
+      await assertNoErrorBoundary(page)
+      // Still on the profile, not navigated elsewhere.
+      await expect(page).toHaveURL(/page=employee-detail/)
+    }
+
+    // The employee, selected tab, and period are URL state rather than an object
+    // held only in memory. A copied deep link therefore survives a full reload.
+    await expect(page).toHaveURL(/id=.*tab=leave/)
+    await page.reload()
+    await expect(page.getByRole('button', { name: /Back to employees/ })).toBeVisible({ timeout: 20000 })
+    await expect(page.locator('main').getByRole('tab', { name: 'Assets' })).toBeVisible()
+    await expect(page.locator('main').getByRole('tab', { name: 'Access' })).toBeVisible()
+
+    // Editing stays inside the organized profile instead of opening the old modal.
+    await page.locator('main').getByRole('tab', { name: 'Overview' }).click()
+    await page.getByRole('button', { name: 'Edit profile' }).click()
+    await expect(page.getByText('Edit employee profile')).toBeVisible()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Cancel' }).last().click()
+
+    await page.getByRole('button', { name: /Back to employees/ }).click()
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Employees')
+
+    expect(problems, `client-side failures:\n${problems.join('\n')}`).toEqual([])
+  })
+})
+
 test.describe('payroll preview', () => {
   test('the month can be confirmed before it is generated', async ({ page }) => {
     const problems = captureFailures(page)
@@ -219,14 +271,28 @@ test.describe('payroll preview', () => {
     await page.goto('/?page=payroll')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Payroll')
 
-    // The preview sits above the run controls, so figures are visible first.
-    await expect(page.getByText('Before you run: preview and checks')).toBeVisible({ timeout: 20000 })
-    await expect(page.getByText(/Ready to run|is not ready/)).toBeVisible()
+    // Collapsed by default: a dry run over every employee is real work, and the
+    // page should not do it before anyone asks.
+    const start = page.getByRole('button', { name: 'Run the check' })
+    await expect(start).toBeVisible({ timeout: 20000 })
+    await start.click()
+
+    await expect(page.getByText(/Ready to run|Not ready/)).toBeVisible({ timeout: 20000 })
 
     // Exceptions is the default view: only people who differ from a clean month.
     await expect(page.getByRole('button', { name: /Needs review/ })).toBeVisible()
     await page.getByRole('button', { name: /Everyone/ }).click()
     await expect(page.getByRole('button', { name: /Everyone/ })).toHaveAttribute('aria-pressed', 'true')
+
+    // Row detail is one click, not seven lines of inline text per employee. A
+    // skipped row has no figures to show, so any of the detail sections counts.
+    const details = page.getByRole('button', { name: 'Details' }).first()
+    if (await details.isVisible()) {
+      await details.click()
+      await expect(
+        page.getByText(/Skipped by the run|Must fix before approving|Worth checking|Days/).first(),
+      ).toBeVisible({ timeout: 15000 })
+    }
 
     await assertNoErrorBoundary(page)
     expect(problems, `client-side failures:\n${problems.join('\n')}`).toEqual([])

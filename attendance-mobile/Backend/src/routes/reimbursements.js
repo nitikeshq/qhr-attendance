@@ -16,6 +16,12 @@ const {
   reimbursementNumber,
   serializeReimbursement,
 } = require('../utils/reimbursements');
+const {
+  calculateMileage,
+  normalizeRequestOptions,
+  normalizeTravelPolicy,
+  resolveCategory,
+} = require('../utils/requestOptions');
 
 const router = express.Router();
 router.use(authRequired);
@@ -65,10 +71,30 @@ function normalizeAttachments(value) {
 router.post('/', async (req, res, next) => {
   try {
     const body = req.body || {};
-    const amount = Math.round(Number(body.amount) * 100) / 100;
+    const travelPolicy = normalizeTravelPolicy(req.company);
+    // A mileage claim is priced from distance at the company rate, so the employee
+    // never types an amount and nobody has to check the arithmetic.
+    const isMileage = String(body.category || '') === 'travel_mileage' || body.distanceKm !== undefined;
+    let mileage = null;
+    if (isMileage) {
+      if (!travelPolicy.allowMileageClaims) return fail(res, 400, 'Mileage claims are switched off for your company');
+      mileage = calculateMileage(travelPolicy, body.travelMode, body.distanceKm);
+      if (!mileage.ok) return fail(res, 400, mileage.reason);
+    }
+    const amount = mileage ? mileage.amount : Math.round(Number(body.amount) * 100) / 100;
     if (!body.category || !body.expenseDate || !body.description || !Number.isFinite(amount) || amount <= 0) {
       return fail(res, 400, 'Category, expense date, description, and a positive amount are required');
     }
+    // Categories are a company-owned list, so claims group correctly instead of
+    // splitting across "Travel", "travel" and "cab".
+    const options = normalizeRequestOptions(req.company);
+    const category = resolveCategory(
+      options.reimbursementCategories,
+      options.allowOtherReimbursementCategory,
+      body.category,
+      body.categoryLabel,
+    );
+    if (!category.ok) return fail(res, 400, category.reason);
     const attachmentInputs = Array.isArray(body.attachments) ? body.attachments : [];
     if (attachmentInputs.length > 10) return fail(res, 400, 'A reimbursement can have at most 10 attachments');
     const attachments = normalizeAttachments(attachmentInputs);
@@ -81,7 +107,14 @@ router.post('/', async (req, res, next) => {
         claimNumber: reimbursementNumber(data),
         companyId: req.company._id,
         employeeId: req.user._id,
-        category: String(body.category).trim(),
+        category: category.code,
+        // The display label is stored alongside the code so retiring an option, or
+        // an "Other" claim, still reads correctly years later.
+        categoryLabel: category.label,
+        categoryIsCustom: category.custom,
+        // Kept so a mileage claim can be re-checked years later against the rate
+        // that applied on the day, not today's rate.
+        travel: mileage ? mileage.detail : null,
         expenseDate: String(body.expenseDate).slice(0, 10),
         amount,
         description: String(body.description).trim(),

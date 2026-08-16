@@ -22,20 +22,25 @@ import { appFontFamily, styles, theme } from "./src/theme";
 import { Badge, Card, Empty, Icon, Metric, Row, SectionHeading, Segmented, Text } from "./src/ui";
 import CalendarScreen from "./src/screens/CalendarScreen";
 import InboxScreen from "./src/screens/InboxScreen";
+import MenuScreen from "./src/screens/MenuScreen";
+import { storage } from "./src/services/storage";
+import { flushQueuedPunches, startGeofencing, stopGeofencing } from "./src/services/geofencing";
 
 const TAB_ICONS = {
   Home: "home",
-  Inbox: "requests",
+  Inbox: "inbox",
   Attendance: "attendance",
   Requests: "requests",
   Calendar: "calendar",
   Team: "team",
   Work: "work",
   Payslips: "payslips",
+  Menu: "menu",
 };
 
-// Five items fit a phone tab bar comfortably; anything else moves to "More".
-const PRIMARY_TAB_LIMIT = 5;
+// Four destinations sit in the bar; everything else is reachable from Menu, which
+// is a real screen rather than a bare overflow list.
+const PRIMARY_TAB_LIMIT = 4;
 const baseTabs = ["Home", "Attendance", "Requests", "Calendar", "Inbox", "Work", "Payslips"];
 
 /** Calendar window for a given month, which is what the API expects. */
@@ -71,14 +76,38 @@ export default function App() {
   const [calendar, setCalendar] = useState(null);
   const [calendarMonth, setCalendarMonth] = useState(new Date().getUTCMonth());
   const [calendarYear, setCalendarYear] = useState(new Date().getUTCFullYear());
-  const [moreOpen, setMoreOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  // Whether automatic attendance is actually armed. Surfaced rather than assumed,
+  // because a denied background permission must not look like it is working.
+  const [autoAttendance, setAutoAttendance] = useState(null);
 
   useEffect(() => {
     api("/auth/companies")
       .then((data) => setCompanies(data.companies || []))
       .catch((error) => setMessage(error.message));
+  }, []);
+
+  // Restore the stored session on launch, re-arm geofencing, and push anything the
+  // background task could not deliver while offline.
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const session = await storage.getSession();
+      if (!active || !session?.token || !session?.employee) return;
+      try {
+        await refresh(session.token, session.employee);
+        if (!active) return;
+        setToken(session.token);
+        setEmployee(session.employee);
+        void flushQueuedPunches(session.token);
+        setAutoAttendance(await startGeofencing(session.token));
+      } catch (error) {
+        // An expired or rejected token must not strand the app on a blank screen.
+        await storage.clearSession();
+      }
+    })();
+    return () => { active = false };
   }, []);
 
   async function login() {
@@ -98,6 +127,11 @@ export default function App() {
       const unavailable = await refresh(activeToken, activeEmployee);
       setEmployee(activeEmployee);
       setToken(activeToken);
+      // Persisted so the geofence task can authenticate with no React tree, and
+      // so closing the app no longer signs the employee out.
+      await storage.saveSession({ token: activeToken, employee: activeEmployee });
+      const armed = await startGeofencing(activeToken);
+      setAutoAttendance(armed);
       const employeeName = [activeEmployee.firstName, activeEmployee.lastName]
         .filter(Boolean)
         .join(" ") || activeEmployee.employeeId || "employee";
@@ -243,6 +277,11 @@ export default function App() {
       await api("/auth/logout", { method: "POST" }, token).catch(
         () => undefined,
       );
+    // Tracking must stop the moment somebody signs out, and the stored session has
+    // to go with it so no background task can keep reporting for them.
+    await stopGeofencing();
+    await storage.clearSession();
+    setAutoAttendance(null);
     setToken("");
     setEmployee(null);
     setToday(null);
@@ -603,10 +642,10 @@ export default function App() {
   const tabs = canApprove
     ? ["Home", "Attendance", "Requests", "Calendar", "Inbox", "Team", "Work", "Payslips"]
     : baseTabs;
-  // Keep the tab bar to five items; the rest live in an overflow sheet so
-  // targets stay large enough to hit on a phone.
-  const visibleTabs = tabs.length > PRIMARY_TAB_LIMIT ? tabs.slice(0, PRIMARY_TAB_LIMIT - 1) : tabs;
-  const overflowTabs = tabs.length > PRIMARY_TAB_LIMIT ? tabs.slice(PRIMARY_TAB_LIMIT - 1) : [];
+  // The bar keeps the four most frequent destinations plus Menu, so targets stay
+  // large enough to hit on a phone and nothing is buried.
+  const visibleTabs = tabs.slice(0, PRIMARY_TAB_LIMIT);
+  const overflowTabs = tabs.slice(PRIMARY_TAB_LIMIT);
   const pendingApprovals = canApprove
     ? pendingLeaves.length + pendingWfh.length
     : 0;
@@ -665,10 +704,20 @@ export default function App() {
             leaveCount={
               leaves.filter((leave) => leave.status === "pending").length
             }
+            unread={unreadCount}
+            pendingApprovals={pendingApprovals}
+            canApprove={canApprove}
+            onOpen={(next) => void openTab(next)}
           />
         )}
         {tab === "Attendance" && (
-          <Attendance today={today} loading={loading} mark={markAttendance} />
+          <Attendance
+            today={today}
+            loading={loading}
+            mark={markAttendance}
+            autoAttendance={autoAttendance}
+            onEnableAuto={async () => setAutoAttendance(await startGeofencing(token))}
+          />
         )}
         {tab === "Requests" && (
           <Requests
@@ -716,48 +765,18 @@ export default function App() {
           <Work projects={projects} tasks={tasks} employeeId={employee?._id} />
         )}
         {tab === "Payslips" && <Payslips payslips={payslips} token={token} />}
+        {tab === "Menu" && (
+          <MenuScreen
+            employee={employee}
+            activeTab={tab}
+            canApprove={canApprove}
+            unread={unreadCount}
+            pendingApprovals={pendingApprovals}
+            onSelect={(next) => void openTab(next)}
+            onSignOut={() => void logout()}
+          />
+        )}
       </ScrollView>
-      {moreOpen ? (
-        <Pressable
-          accessibilityLabel="Close menu"
-          onPress={() => setMoreOpen(false)}
-          style={styles.sheetBackdrop}
-        >
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            <View style={styles.sheetHandle} />
-            {overflowTabs.map((item) => {
-              const active = tab === item;
-              return (
-                <Pressable
-                  key={item}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  onPress={() => {
-                    setMoreOpen(false);
-                    void openTab(item);
-                  }}
-                  style={[styles.sheetItem, active && styles.sheetItemActive]}
-                >
-                  <Icon
-                    name={TAB_ICONS[item] || "more"}
-                    size={22}
-                    color={active ? theme.primaryDeep : theme.muted}
-                  />
-                  <Text
-                    style={[
-                      styles.sheetItemText,
-                      active && { color: theme.primaryDeep, fontWeight: "700" },
-                    ]}
-                  >
-                    {item}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </Pressable>
-        </Pressable>
-      ) : null}
-
       <View style={styles.tabs}>
         {visibleTabs.map((item) => {
           const active = tab === item;
@@ -787,51 +806,57 @@ export default function App() {
             </Pressable>
           );
         })}
-        {overflowTabs.length ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="More sections"
-            accessibilityState={{ expanded: moreOpen }}
-            onPress={() => setMoreOpen((open) => !open)}
-            style={[styles.tab, (moreOpen || overflowTabs.includes(tab)) && styles.activeTab]}
-          >
-            <Icon
-              name="more"
-              size={21}
-              color={moreOpen || overflowTabs.includes(tab) ? theme.primaryDeep : theme.faint}
-            />
-            <Text
-              style={[
-                styles.tabText,
-                (moreOpen || overflowTabs.includes(tab)) && styles.activeTabText,
-              ]}
-            >
-              More
-            </Text>
-            {(() => {
-              // Surface counts from whichever hidden tabs carry them.
-              const hidden = (overflowTabs.includes("Team") ? pendingApprovals : 0)
-                + (overflowTabs.includes("Inbox") ? unreadCount : 0);
-              return hidden > 0 ? (
-                <View style={styles.tabBadge}>
-                  <Text style={styles.tabBadgeText}>{hidden > 9 ? "9+" : hidden}</Text>
-                </View>
-              ) : null;
-            })()}
-          </Pressable>
-        ) : null}
+        {/* Menu is a destination, not a popup, so every area of the app has a real
+            screen with room for grouping, description and counts. */}
+        <Pressable
+          accessibilityRole="tab"
+          accessibilityLabel="Menu"
+          accessibilityState={{ selected: tab === "Menu" }}
+          onPress={() => void openTab("Menu")}
+          style={[styles.tab, tab === "Menu" && styles.activeTab]}
+        >
+          <Icon name="menu" size={21} color={tab === "Menu" ? theme.primaryDeep : theme.faint} />
+          <Text style={[styles.tabText, tab === "Menu" && styles.activeTabText]}>Menu</Text>
+          {(() => {
+            // Counts from anything not currently in the bar, so nothing is missed.
+            const hidden = (overflowTabs.includes("Team") ? pendingApprovals : 0)
+              + (overflowTabs.includes("Inbox") ? unreadCount : 0);
+            return hidden > 0 ? (
+              <View style={styles.tabBadge}>
+                <Text style={styles.tabBadgeText}>{hidden > 9 ? "9+" : hidden}</Text>
+              </View>
+            ) : null;
+          })()}
+        </Pressable>
       </View>
     </SafeAreaView>
   );
 }
 
-function Home({ employee, today, leaveCount }) {
+function Home({ employee, today, leaveCount, unread, pendingApprovals, canApprove, onOpen }) {
+  const checkedIn = Boolean(today?.checkIn);
+  const checkedOut = Boolean(today?.checkOut);
+  const hours = today?.workDuration ? `${(today.workDuration / 60).toFixed(1)} h` : "-";
+  // Quick actions exist because the home screen was previously read-only: it showed
+  // four facts and gave no way to act on any of them.
+  const actions = [
+    {
+      tab: "Attendance",
+      icon: checkedIn && !checkedOut ? "checkOut" : "checkIn",
+      label: checkedIn && !checkedOut ? "Check out" : checkedIn ? "Attendance" : "Check in",
+      caption: checkedIn && !checkedOut ? "End your day" : checkedIn ? "Today is recorded" : "Start your day",
+    },
+    { tab: "Requests", icon: "leave", label: "Apply", caption: "Leave, WFH, expenses" },
+    { tab: "Payslips", icon: "payslips", label: "Payslips", caption: "Download a PDF" },
+    { tab: "Calendar", icon: "calendar", label: "Calendar", caption: "Holidays and events" },
+  ];
+
   return (
     <>
       <View style={styles.hero}>
         <Text style={styles.heroLabel}>Today</Text>
         <Text style={styles.heroValue}>
-          {today?.checkIn ? "Checked in" : "Ready to check in"}
+          {checkedOut ? "Day complete" : checkedIn ? "Checked in" : "Ready to check in"}
         </Text>
         <Text style={styles.heroMeta}>
           {new Date().toLocaleDateString(undefined, {
@@ -839,63 +864,162 @@ function Home({ employee, today, leaveCount }) {
             month: "long",
             day: "numeric",
           })}
+          {checkedIn ? ` · in at ${new Date(today.checkIn.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
         </Text>
       </View>
-      <View style={styles.grid}>
-        <Metric label="Employee ID" value={employee?.employeeId || "-"} />
-        <Metric label="Department" value={employee?.department || "-"} />
-        <Metric label="Status" value={today?.status || "Not checked in"} />
-        <Metric label="Pending leave" value={String(leaveCount)} />
+
+      <View style={{ marginTop: 18 }}>
+        <SectionHeading title="Quick actions" caption="The things people open most" />
+        <View style={styles.quickGrid}>
+          {actions.map((action) => (
+            <Pressable
+              key={action.label}
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
+              onPress={() => onOpen?.(action.tab)}
+              style={styles.quickAction}
+            >
+              <View style={styles.menuIcon}>
+                <Icon name={action.icon} size={19} color={theme.primaryDeep} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.quickActionLabel} numberOfLines={1}>{action.label}</Text>
+                <Text style={styles.quickActionCaption} numberOfLines={1}>{action.caption}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      <View style={{ marginTop: 18 }}>
+        <SectionHeading title="Today" caption="Your attendance and open items" />
+        <View style={styles.grid}>
+          <Metric label="Status" value={today?.status ? String(today.status).replace(/_/g, " ") : "Not checked in"} />
+          <Metric label="Hours worked" value={hours} />
+          <Metric label="Pending leave" value={String(leaveCount)} hint={leaveCount ? "Awaiting a decision" : undefined} />
+          <Metric label="Unread" value={String(unread || 0)} hint={unread ? "In your inbox" : undefined} />
+        </View>
+      </View>
+
+      {canApprove && pendingApprovals > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => onOpen?.("Team")}
+          style={[styles.card, { marginTop: 18, flexDirection: "row", alignItems: "center", gap: 12 }]}
+        >
+          <View style={styles.menuIcon}>
+            <Icon name="team" size={20} color={theme.warning} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ fontWeight: "700", color: theme.text }}>
+              {pendingApprovals} {pendingApprovals === 1 ? "request" : "requests"} awaiting you
+            </Text>
+            <Text style={styles.muted}>Leave and work-from-home approvals for your reports</Text>
+          </View>
+          <Icon name="chevronRight" size={16} color={theme.faint} />
+        </Pressable>
+      ) : null}
+
+      <View style={{ marginTop: 18 }}>
+        <SectionHeading title="Your details" />
+        <Card>
+          <Row label="Employee ID" value={employee?.employeeId || "-"} />
+          <Row label="Department" value={employee?.department || "-"} />
+          <Row label="Designation" value={employee?.designation || "-"} />
+        </Card>
       </View>
     </>
   );
 }
-function Attendance({ today, loading, mark }) {
+function Attendance({ today, loading, mark, autoAttendance, onEnableAuto }) {
+  const time = (value) => (value ? new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "-");
+  const checkedIn = Boolean(today?.checkIn);
+  const checkedOut = Boolean(today?.checkOut);
+  const state = checkedOut ? "Day complete" : checkedIn ? "Currently checked in" : "Not checked in yet";
+  const auto = autoAttendance;
+  const autoOn = auto?.started === true;
+  const recordedAutomatically = today?.checkIn?.method === "geofence_auto";
+
   return (
-    <View style={styles.card}>
-      <Text style={styles.sectionTitle}>Attendance</Text>
-      <Row
-        label="Check in"
-        value={
-          today?.checkIn?.time
-            ? new Date(today.checkIn.time).toLocaleTimeString()
-            : "-"
-        }
-      />
-      <Row
-        label="Check out"
-        value={
-          today?.checkOut?.time
-            ? new Date(today.checkOut.time).toLocaleTimeString()
-            : "-"
-        }
-      />
-      <Row
-        label="Work duration"
-        value={
-          today?.workDuration
-            ? `${(today.workDuration / 60).toFixed(1)} hours`
-            : "-"
-        }
-      />
-      <Pressable
-        disabled={loading || Boolean(today?.checkIn)}
-        onPress={() => mark("check-in")}
-        style={[styles.primaryButton, today?.checkIn && styles.disabled]}
-      >
-        <Text style={styles.primaryText}>Check in with location</Text>
-      </Pressable>
-      <Pressable
-        disabled={loading || !today?.checkIn || Boolean(today?.checkOut)}
-        onPress={() => mark("check-out")}
-        style={[
-          styles.secondaryButton,
-          (!today?.checkIn || today?.checkOut) && styles.disabled,
-        ]}
-      >
-        <Text style={styles.secondaryText}>Check out</Text>
-      </Pressable>
-    </View>
+    <>
+      <SectionHeading title="Attendance" caption="Today's record for you" />
+
+      {/* Automatic attendance is the point of the product, so its true state is
+          shown first. A denied background permission is reported plainly rather
+          than leaving somebody believing their arrival is being recorded. */}
+      <Card style={{ marginBottom: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View style={styles.menuIcon}>
+            <Icon name="location" size={20} color={autoOn ? theme.success : theme.warning} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ fontWeight: "700", color: theme.text }}>
+              {autoOn ? "Automatic attendance is on" : "Automatic attendance is off"}
+            </Text>
+            <Text style={styles.muted}>
+              {autoOn
+                ? `Arrival and departure are recorded for ${auto.regions} work ${auto.regions === 1 ? "location" : "locations"}, even with the app closed.`
+                : auto?.reason || "Checking your device permissions..."}
+            </Text>
+          </View>
+          {autoOn ? <Badge tone="positive">on</Badge> : null}
+        </View>
+        {!autoOn && auto ? (
+          <Pressable onPress={onEnableAuto} style={[styles.secondaryButton, { marginTop: 12 }]}>
+            <Text style={styles.secondaryText}>Turn on automatic attendance</Text>
+          </Pressable>
+        ) : null}
+      </Card>
+      <Card>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <View style={styles.menuIcon}>
+            <Icon name="clock" size={20} color={checkedOut ? theme.success : checkedIn ? theme.primaryDeep : theme.muted} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ fontWeight: "700", color: theme.text }}>{state}</Text>
+            <Text style={styles.muted}>
+              {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
+            </Text>
+          </View>
+          {today?.status ? <Badge>{today.status}</Badge> : null}
+        </View>
+
+        <Row label="Check in" value={time(today?.checkIn?.time)} />
+        <Row label="Check out" value={time(today?.checkOut?.time)} />
+        <Row label="Recorded by" value={recordedAutomatically ? "Geofence, automatically" : checkedIn ? "Marked manually" : "-"} />
+        <Row
+          label="Work duration"
+          value={today?.workDuration ? `${(today.workDuration / 60).toFixed(1)} hours` : "-"}
+        />
+        {today?.isLate ? (
+          <View style={[styles.notice, { marginTop: 12 }]}>
+            <Text style={styles.noticeText}>
+              Marked late{today.lateByMinutes ? ` by ${today.lateByMinutes} minutes` : ""} against your office start time.
+            </Text>
+          </View>
+        ) : null}
+
+        <Pressable
+          disabled={loading || checkedIn}
+          onPress={() => mark("check-in")}
+          style={[styles.primaryButton, { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }, checkedIn && styles.disabled]}
+        >
+          {loading && !checkedIn ? <ActivityIndicator color="#fff" size="small" /> : <Icon name="location" size={18} color="#FFFFFF" />}
+          <Text style={styles.primaryText}>Check in with location</Text>
+        </Pressable>
+        <Pressable
+          disabled={loading || !checkedIn || checkedOut}
+          onPress={() => mark("check-out")}
+          style={[styles.secondaryButton, { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }, (!checkedIn || checkedOut) && styles.disabled]}
+        >
+          <Icon name="checkOut" size={18} color={!checkedIn || checkedOut ? theme.faint : theme.primaryDeep} />
+          <Text style={styles.secondaryText}>Check out</Text>
+        </Pressable>
+        <Text style={[styles.muted, { marginTop: 10 }]}>
+          Your location is captured at check-in to match an approved work location.
+        </Text>
+      </Card>
+    </>
   );
 }
 function futureDate(days) {
@@ -1307,30 +1431,60 @@ function Work({ projects, tasks, employeeId }) {
   const assignedTasks = tasks.filter(
     (task) => !task.assignedTo || task.assignedTo === employeeId,
   );
+  // Open and done are counted so the screen answers "what is left?" rather than
+  // making the reader tally a flat list themselves.
+  const done = assignedTasks.filter((task) => /done|complete|closed/i.test(String(task.status || ""))).length;
+  const overdue = assignedTasks.filter((task) => (
+    task.dueDate && !/done|complete|closed/i.test(String(task.status || "")) && String(task.dueDate).slice(0, 10) < new Date().toISOString().slice(0, 10)
+  )).length;
+
   return (
     <>
-      <Text style={styles.sectionTitle}>My work</Text>
-      {assignedTasks.length ? (
-        assignedTasks.map((task) => (
-          <View key={task._id} style={styles.card}>
-            <View style={styles.row}>
-              <Text style={styles.cardTitle}>{task.title}</Text>
-              <Text style={styles.badge}>{task.status}</Text>
-            </View>
-            <Text style={styles.muted}>
-              {projectNames[task.projectId] || "No project"} -{" "}
-              {task.priority || "medium"} priority
-            </Text>
-            {task.dueDate ? (
-              <Text style={styles.body}>
-                Due {String(task.dueDate).slice(0, 10)}
-              </Text>
-            ) : null}
-          </View>
-        ))
-      ) : (
-        <Empty label="No tasks assigned yet" />
-      )}
+      <SectionHeading title="My work" caption="Tasks assigned to you" />
+      <View style={styles.grid}>
+        <Metric label="Assigned" value={String(assignedTasks.length)} />
+        <Metric label="Open" value={String(assignedTasks.length - done)} />
+        <Metric label="Overdue" value={String(overdue)} hint={overdue ? "Past the due date" : undefined} />
+        <Metric label="Completed" value={String(done)} />
+      </View>
+
+      <View style={{ marginTop: 18 }}>
+        {assignedTasks.length ? (
+          assignedTasks.map((task) => {
+            const isOverdue = task.dueDate
+              && !/done|complete|closed/i.test(String(task.status || ""))
+              && String(task.dueDate).slice(0, 10) < new Date().toISOString().slice(0, 10);
+            return (
+              <Card key={task._id} style={{ marginBottom: 10 }}>
+                <View style={styles.row}>
+                  <Text style={styles.cardTitle} numberOfLines={2}>{task.title}</Text>
+                  <Badge>{task.status}</Badge>
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
+                  <Icon name="project" size={14} color={theme.faint} />
+                  <Text style={styles.muted} numberOfLines={1}>
+                    {projectNames[task.projectId] || "No project"}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                  <Icon name="warning" size={14} color={theme.faint} />
+                  <Text style={styles.muted}>{task.priority || "medium"} priority</Text>
+                </View>
+                {task.dueDate ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                    <Icon name="calendar" size={14} color={isOverdue ? theme.danger : theme.faint} />
+                    <Text style={[styles.muted, isOverdue && { color: theme.danger, fontWeight: "700" }]}>
+                      Due {String(task.dueDate).slice(0, 10)}{isOverdue ? " · overdue" : ""}
+                    </Text>
+                  </View>
+                ) : null}
+              </Card>
+            );
+          })
+        ) : (
+          <Empty label="No tasks assigned yet" hint="Tasks your manager assigns will appear here." />
+        )}
+      </View>
     </>
   );
 }

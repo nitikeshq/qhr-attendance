@@ -1,11 +1,36 @@
 'use client'
 
 import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
-import { ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { MouseEvent as ReactMouseEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
 export const fieldClass = 'neu-input w-full px-3 py-2.5'
 
 export type Option = { value: string; label: string; hint?: string; group?: string }
+export type EmployeeProfileTab = 'overview' | 'salary' | 'payslips' | 'attendance' | 'leave' | 'assets' | 'access'
+
+/** Canonical deep link used anywhere an employee name appears. */
+export function employeeProfileHref(employeeId: string, tab: EmployeeProfileTab = 'overview', period?: string) {
+  const params = new URLSearchParams({ page: 'employee-detail', id: employeeId, tab })
+  if (period) params.set('period', period)
+  return `?${params.toString()}`
+}
+
+/** Preserves native link behavior while using SPA navigation for a normal click. */
+export function EmployeeProfileLink({ employeeId, tab = 'overview', period, onOpen, children, className = 'font-semibold text-primary-700 hover:underline' }: {
+  employeeId: string
+  tab?: EmployeeProfileTab
+  period?: string
+  onOpen?: (employeeId: string, tab: EmployeeProfileTab, period?: string) => void
+  children: ReactNode
+  className?: string
+}) {
+  function open(event: ReactMouseEvent<HTMLAnchorElement>) {
+    if (!onOpen || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    event.preventDefault()
+    onOpen(employeeId, tab, period)
+  }
+  return <a href={employeeProfileHref(employeeId, tab, period)} onClick={open} className={`rounded-sm underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 ${className}`}>{children}</a>
+}
 
 /** Accessible typeahead select. Replaces long native <select> lists. */
 export function SearchableSelect({
@@ -275,6 +300,40 @@ export function TabBar<T extends string>({ tabs, value, onChange }: {
           </button>
         )
       })}
+    </div>
+  )
+}
+
+export function Modal({ title, close, children, size = 'default', footer }: {
+  title: string
+  close: () => void
+  children: ReactNode
+  size?: 'default' | 'wide'
+  footer?: ReactNode
+}) {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) { if (event.key === 'Escape') close() }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [close])
+
+  const width = size === 'wide' ? 'max-w-4xl' : 'max-w-lg'
+  return (
+    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-ink/40 p-3 backdrop-blur-[1px] sm:p-6">
+      <button type="button" aria-label="Close dialog" onClick={close} className="absolute inset-0 cursor-default" />
+      <div className={`animate-in relative flex max-h-[calc(100dvh-1.5rem)] w-full ${width} flex-col overflow-hidden rounded-xl border border-line bg-white shadow-overlay sm:max-h-[calc(100dvh-3rem)]`}>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line bg-surface-subtle px-4 py-3 sm:px-5">
+          <h2 className="min-w-0 truncate text-base font-bold tracking-tight">{title}</h2>
+          <button type="button" aria-label="Close dialog" onClick={close} className="ghost-button shrink-0 p-1.5"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">{children}</div>
+        {footer && <div className="shrink-0 border-t border-line bg-surface-subtle px-4 py-3 sm:px-5">{footer}</div>}
+      </div>
     </div>
   )
 }

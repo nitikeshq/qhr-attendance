@@ -14,7 +14,8 @@
  * disagree about someone's pay would be worse than having neither.
  */
 
-const { PERIOD_PATTERN, periodRange } = require('./attendancePolicy');
+const { PERIOD_PATTERN, normalizeHolidays, periodRange, workWeekFor } = require('./attendancePolicy');
+const { paymentDateForPeriod } = require('./workWeek');
 const {
   calculatePayroll,
   normalizePayrollSettings,
@@ -231,7 +232,20 @@ function previewPayroll(data, { company, period }) {
     if (!salary.payrollEnabled) {
       // Skipped by generation, so there is nothing to compute. Reported anyway,
       // because "skipped" used to be discovered only after the run.
-      rows.push({ ...base, skipped: true, skipReason: 'Salary structure not configured', attendance: null, figures: null, reasons: ['no salary structure'] });
+      //
+      // Warnings are dropped here on purpose. Without a salary structure the row
+      // never produces a payslip, so "PF applies but no UAN" and the rest are
+      // consequences of the one thing that matters, not separate problems. Listing
+      // all of them buried the actual blocker in noise.
+      rows.push({
+        ...base,
+        warnings: [],
+        skipped: true,
+        skipReason: 'Salary structure not configured',
+        attendance: null,
+        figures: null,
+        reasons: ['no salary structure'],
+      });
       continue;
     }
 
@@ -276,9 +290,18 @@ function previewPayroll(data, { company, period }) {
 
   const exceptions = rows.filter((row) => row.reasons.length > 0 || row.blockers.length > 0);
 
+  // When the money actually moves, rather than the raw configured day number.
+  const payment = paymentDateForPeriod(
+    workWeekFor(company, settings),
+    period,
+    settings.paymentDay,
+    new Set(normalizeHolidays(company?.holidays || []).map((item) => item.date)),
+  );
+
   return {
     period,
     generatedAt: new Date().toISOString(),
+    payment,
     company: { blockers: company_.blockers, warnings: company_.warnings },
     counts: {
       employees: rows.length,

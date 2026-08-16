@@ -66,27 +66,73 @@ function defaultBucketMap(company) {
   return buckets;
 }
 
-function getBalance(data, employeeId, company) {
-  let balance = data.leaveBalances.find((item) => item.employeeId === employeeId);
+function leaveYearOf(value) {
+  const key = String(value || '').slice(0, 4);
+  const year = Number(key);
+  return Number.isInteger(year) && year > 2000 ? year : new Date().getUTCFullYear();
+}
+
+/**
+ * A leave balance is per employee **per year**.
+ *
+ * The row carried a `year` field that nothing ever filtered on, so allowances never
+ * reset: somebody who used 12 casual days in 2025 still showed 12 used in 2026, and
+ * their entitlement was silently gone forever. Matching on the year gives each year
+ * a fresh set of credits, and leaves prior years intact for reporting.
+ */
+function getBalance(data, employeeId, company, year = new Date().getUTCFullYear()) {
+  const targetYear = leaveYearOf(year);
+  let balance = data.leaveBalances.find((item) => item.employeeId === employeeId && leaveYearOf(item.year) === targetYear);
   if (!balance) {
-    balance = {
-      employeeId,
-      year: new Date().getUTCFullYear(),
-      balances: defaultBucketMap(company),
-    };
-    data.leaveBalances.push(balance);
-    return balance;
+    // A legacy row with no year is adopted into the current year once, so existing
+    // tenants keep the credits they have already consumed this year.
+    const legacy = data.leaveBalances.find((item) => item.employeeId === employeeId && !item.year);
+    if (legacy && targetYear === new Date().getUTCFullYear()) {
+      legacy.year = targetYear;
+      balance = legacy;
+    } else {
+      balance = { employeeId, year: targetYear, balances: defaultBucketMap(company) };
+      data.leaveBalances.push(balance);
+      return balance;
+    }
   }
   balance.balances = balance.balances || {};
   const expected = defaultBucketMap(company);
   Object.entries(expected).forEach(([code, bucket]) => {
     if (!balance.balances[code]) balance.balances[code] = { ...bucket };
+    // The allowance follows the company policy, so raising it mid-year reaches
+    // people who have already taken leave rather than only new joiners.
+    else if (Number(balance.balances[code].total) !== Number(bucket.total)) {
+      balance.balances[code].total = bucket.total;
+      balance.balances[code].remaining = round2(Math.max(0, Number(bucket.total) - Number(balance.balances[code].used || 0)));
+    }
   });
   return balance;
 }
 
+/**
+ * Days already requested but not yet decided, for one leave type and year.
+ *
+ * Balance is only deducted on final approval, so three separate requests could each
+ * pass the "enough remaining" check and collectively blow through the allowance.
+ * Pending days are treated as reserved to close that hole.
+ */
+function pendingDaysFor(data, employeeId, company, code, year) {
+  const targetYear = leaveYearOf(year);
+  return round2((data.leaves || [])
+    .filter((item) => (
+      item.employeeId === employeeId
+      && item.status === 'pending'
+      && leaveTypeCode(item.leaveType) === leaveTypeCode(code)
+      && leaveYearOf(item.startDate) === targetYear
+    ))
+    .reduce((sum, item) => sum + Number(item.days || 0), 0));
+}
+
 function balanceBucket(data, leave, company) {
-  const balance = getBalance(data, leave.employeeId, company);
+  // Scoped to the year the leave falls in, so a January request draws on the new
+  // year's credits rather than the previous one's remainder.
+  const balance = getBalance(data, leave.employeeId, company, leaveYearOf(leave.startDate));
   const code = leaveTypeCode(leave.leaveType);
   if (!balance.balances[code]) {
     const type = findLeaveType(company, code);
@@ -320,15 +366,90 @@ function overlapsExistingLeave(data, leave) {
   });
 }
 
-router.get('/types', (req, res) => ok(res, {
-  leaveTypes: req.company.leaveTypes || [],
-  types: req.company.leaveTypes || [],
-}));
+/**
+ * The leave types an employee can choose. Normalized rather than raw, so the app
+ * gets stable codes and a resolved paid/unpaid flag instead of whatever shape the
+ * company record happens to hold.
+ */
+router.get('/types', (req, res) => {
+  const leaveTypes = leaveTypeCatalog(req.company).map((type) => ({
+    ...type,
+    label: type.name,
+    unpaid: type.paid === false,
+  }));
+  return ok(res, { leaveTypes, types: leaveTypes });
+});
 
+/**
+ * Leave balance. Defaults to the signed-in user; HR and admin may ask for anybody
+ * in the company, and a manager for their own reports. Without this an employee
+ * profile could show leave history but not what was left.
+ */
 router.get('/balance', async (req, res, next) => {
   try {
-    const data = await req.app.locals.store.update((draft) => getBalance(draft, req.user._id, req.company));
-    return ok(res, { balance: data });
+    const requested = String(req.query.employeeId || '').trim();
+    let subjectId = req.user._id;
+
+    if (requested && requested !== req.user._id) {
+      const store = await req.app.locals.store.read();
+      const target = store.employees.find((item) => item._id === requested && item.companyId === req.company._id);
+      if (!target) return fail(res, 404, 'Employee not found');
+
+      const permitted = HR_ROLES.includes(req.user.role)
+        || target.managerId === req.user._id
+        || target.delegateApproverId === req.user._id;
+      if (!permitted) return fail(res, 403, 'You do not have permission to view this leave balance');
+      subjectId = target._id;
+    }
+
+    const year = leaveYearOf(req.query.year || new Date().getUTCFullYear());
+    const balance = await req.app.locals.store.update((draft) => getBalance(draft, subjectId, req.company, year));
+    const data = await req.app.locals.store.read();
+
+    // Credits per type, with pending requests reserved, so what an employee sees is
+    // what they can actually still apply for.
+    const credits = leaveTypeCatalog(req.company).map((type) => {
+      const bucket = balance.balances[type.code] || { total: type.annualAllowance, used: 0, remaining: type.annualAllowance };
+      const pending = pendingDaysFor(data, subjectId, req.company, type.code, year);
+      return {
+        code: type.code,
+        name: type.name,
+        paid: type.paid !== false,
+        credit: round2(bucket.total),
+        used: round2(bucket.used),
+        pending,
+        available: round2(Math.max(0, Number(bucket.remaining || 0) - pending)),
+      };
+    });
+
+    return ok(res, { balance, credits, year, employeeId: subjectId });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/** One employee's leave history, for HR opening a profile. */
+router.get('/employee/:employeeId', roleRequired('manager', 'hr', 'admin'), async (req, res, next) => {
+  try {
+    const data = await req.app.locals.store.read();
+    const target = data.employees.find((item) => item._id === req.params.employeeId && item.companyId === req.company._id);
+    if (!target) return fail(res, 404, 'Employee not found');
+
+    const permitted = HR_ROLES.includes(req.user.role)
+      || target.managerId === req.user._id
+      || target.delegateApproverId === req.user._id;
+    if (!permitted) return fail(res, 403, 'You do not have permission to view this leave history');
+
+    const leaves = data.leaves
+      .filter((leave) => leave.employeeId === target._id)
+      .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)));
+    const { items, pagination } = paginate(leaves, req.query);
+
+    return ok(res, {
+      leaves: items.map((leave) => serializeLeave(data, leave)),
+      count: leaves.length,
+      pagination,
+    });
   } catch (error) {
     return next(error);
   }
@@ -405,11 +526,25 @@ async function applyLeave(req, res, next) {
         return { conflict: 'You already have a leave request covering these dates' };
       }
 
+      // The type has to be one the company actually offers. Previously any free-text
+      // code was accepted: an unknown code created a zero-allowance bucket, and
+      // anything containing "unpaid" skipped the balance check entirely.
+      const catalog = leaveTypeCatalog(req.company);
+      if (catalog.length && !catalog.some((item) => item.code === leaveTypeCode(leave.leaveType))) {
+        return { invalid: `Choose one of your company leave types: ${catalog.map((item) => item.name).join(', ')}` };
+      }
+
       if (!isUnpaidLeaveType(req.company, leave.leaveType)) {
         const bucket = balanceBucket(data, leave, req.company);
-        const remaining = Number(bucket?.remaining || 0);
-        if (days > remaining) {
-          return { invalid: `Insufficient leave balance: ${days} day(s) requested but ${round2(remaining)} day(s) remaining` };
+        const pending = pendingDaysFor(data, leave.employeeId, req.company, leave.leaveType, leave.startDate);
+        const available = round2(Math.max(0, Number(bucket?.remaining || 0) - pending));
+        if (days > available) {
+          const pendingNote = pending > 0 ? `, ${pending} day(s) already awaiting a decision` : '';
+          return {
+            invalid: `Insufficient ${leaveTypeCode(leave.leaveType)} leave credit for ${leaveYearOf(leave.startDate)}: `
+              + `${days} day(s) requested, ${available} day(s) available${pendingNote}. `
+              + 'Apply under an unpaid leave type if you need to exceed your credit.',
+          };
         }
       }
 

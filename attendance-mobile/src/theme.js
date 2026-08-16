@@ -668,6 +668,66 @@ export const styles = StyleSheet.create({
   },
   sheetItemActive: { backgroundColor: theme.primarySoft },
   sheetItemText: { color: theme.text, fontSize: 15, fontWeight: "600" },
+
+  // Application menu
+  menuAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 999,
+    backgroundColor: theme.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuAvatarText: { color: "#FFFFFF", fontSize: 19, fontWeight: "700" },
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.line,
+  },
+  menuIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: theme.subtle,
+    borderWidth: 1,
+    borderColor: theme.line,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuIconActive: { backgroundColor: theme.primarySoft, borderColor: theme.primaryBorder },
+  menuLabel: { fontSize: 15, fontWeight: "700", color: theme.text },
+  menuCaption: { fontSize: 12, color: theme.muted, marginTop: 2 },
+  menuCount: {
+    minWidth: 24,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: theme.danger,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuCountText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
+
+  // Home quick actions
+  quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  quickAction: {
+    flexGrow: 1,
+    flexBasis: "47%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: theme.inset,
+    borderWidth: 1,
+    borderColor: theme.line,
+  },
+  quickActionLabel: { fontSize: 14, fontWeight: "700", color: theme.text },
+  quickActionCaption: { fontSize: 11, color: theme.muted, marginTop: 1 },
 });
 
 export const TAB_BAR = { height: TAB_BAR_HEIGHT };

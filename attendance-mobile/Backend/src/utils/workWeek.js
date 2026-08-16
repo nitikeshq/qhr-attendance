@@ -144,6 +144,48 @@ function describePeriod(workWeek, dates, holidayKeys = new Set()) {
   return { days, workingDays: working, halfDays: half, weeklyOffDays: off, holidayDays: holidays };
 }
 
+/**
+ * When salary is actually paid for a period.
+ *
+ * `paymentDay` was only ever a number, so a pay day landing on a Sunday or a
+ * public holiday stayed there and the register promised money on a day no bank
+ * transfer would be made. Standard practice is to bring it forward to the previous
+ * working day, which is what this does. It never moves the date later, because
+ * paying late is a worse failure than paying early.
+ */
+function paymentDateForPeriod(workWeek, period, paymentDay, holidayKeys = new Set()) {
+  const [year, month] = String(period).split('-').map(Number);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return null;
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const requestedDay = Math.min(Math.max(Math.floor(Number(paymentDay) || 1), 1), daysInMonth);
+  const requested = new Date(Date.UTC(year, month - 1, requestedDay));
+
+  let candidate = new Date(requested);
+  // A whole month of weekly offs and holidays cannot exceed 31 steps.
+  for (let step = 0; step < 31; step += 1) {
+    const key = candidate.toISOString().slice(0, 10);
+    const isClosed = holidayKeys.has(key) || classifyDate(workWeek, candidate) === 'off';
+    if (!isClosed) {
+      const shifted = candidate.getTime() !== requested.getTime();
+      return {
+        date: key,
+        requestedDate: requested.toISOString().slice(0, 10),
+        shifted,
+        reason: shifted
+          ? `Moved earlier to the previous working day; ${requested.toISOString().slice(0, 10)} is ${holidayKeys.has(requested.toISOString().slice(0, 10)) ? 'a holiday' : 'a weekly off'}.`
+          : null,
+      };
+    }
+    candidate = new Date(candidate.getTime() - 86400000);
+  }
+  return {
+    date: requested.toISOString().slice(0, 10),
+    requestedDate: requested.toISOString().slice(0, 10),
+    shifted: false,
+    reason: 'Every day in range is a weekly off or holiday, so the configured day stands.',
+  };
+}
+
 module.exports = {
   DAY_KINDS,
   WEEKDAY_LABELS,
@@ -152,5 +194,6 @@ module.exports = {
   describePeriod,
   describeWeekday,
   normalizeWorkWeek,
+  paymentDateForPeriod,
   weekdayOccurrence,
 };

@@ -8,12 +8,21 @@
     "platforms": ["android", "ios", "web"],
     "android": {
       "package": "com.qhr.attendance",
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "ios": {
       "bundleIdentifier": "com.qhr.attendance",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "QHR uses your location to verify attendance at an approved workplace."
+        "NSLocationWhenInUseUsageDescription": "QHR uses your location to verify attendance at an approved workplace.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "QHR records your arrival and departure automatically so you never have to mark attendance by hand.",
+        "NSLocationAlwaysUsageDescription": "QHR records your arrival and departure automatically so you never have to mark attendance by hand.",
+        "UIBackgroundModes": ["location", "fetch"]
       }
     },
     "web": {
@@ -23,9 +32,13 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow QHR to verify attendance at your workplace."
+          "locationWhenInUsePermission": "Allow QHR to verify attendance at your workplace.",
+          "locationAlwaysAndWhenInUsePermission": "Allow QHR to record arrival and departure automatically, so attendance is never marked by hand.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
-      ]
+      ],
+      "expo-task-manager"
     ]
   }
 }

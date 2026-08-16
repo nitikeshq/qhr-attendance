@@ -1783,3 +1783,341 @@ test('managers cannot preview payroll', async () => {
   const blocked = await call('/api/v1/payroll/preview?period=2027-05', { token: login.data.accessToken });
   assert.equal(blocked.status, 403);
 });
+
+test('request options drive the pickers, and free text is no longer accepted', async () => {
+  const adminAuth = await adminToken();
+  const employeeLogin = await call('/api/v1/auth/login', {
+    method: 'POST', body: { companyCode: 'TESTCO', employeeId: 'EMP001', passcode: '1234' },
+  });
+  const employeeAuth = employeeLogin.data.accessToken;
+
+  // An employee needs the lists to render a dropdown, so this is readable by any role.
+  const options = await call('/api/v1/companies/request-options', { token: employeeAuth });
+  assert.equal(options.status, 200);
+  assert.ok(options.data.leaveTypes.length >= 4, 'expected seeded leave types');
+  assert.ok(options.data.reimbursementCategories.length >= 5, 'expected seeded expense categories');
+  assert.ok(options.data.grievanceCategories.length >= 4, 'expected seeded support categories');
+  const casual = options.data.leaveTypes.find((item) => item.code === 'casual');
+  assert.equal(casual.unpaid, false);
+  assert.equal(typeof casual.annualAllowance, 'number');
+
+  // Only an admin owns the lists.
+  const employeeEdit = await call('/api/v1/companies/request-options', {
+    method: 'PATCH', token: employeeAuth, body: { reimbursementCategories: [] },
+  });
+  assert.equal(employeeEdit.status, 403);
+
+  // A leave type the company does not offer is refused rather than silently
+  // creating a zero-allowance bucket.
+  const bogusLeave = await call('/api/v1/leaves/apply', {
+    method: 'POST', token: employeeAuth,
+    body: { leaveType: 'sabbatical', startDate: '2026-12-01', endDate: '2026-12-01', reason: 'Break' },
+  });
+  assert.equal(bogusLeave.status, 400);
+  assert.match(bogusLeave.message, /company leave types/i);
+
+  // A configured category is stored by its code, with a readable label kept beside it.
+  const travel = await call('/api/v1/reimbursements', {
+    method: 'POST', token: employeeAuth,
+    body: { category: 'travel', expenseDate: '2026-07-10', amount: 500, description: 'Client visit cab' },
+  });
+  assert.equal(travel.status, 201);
+  assert.equal(travel.data.reimbursement.category, 'travel');
+
+  // "Other" keeps the employee's wording instead of inventing a new code.
+  const other = await call('/api/v1/reimbursements', {
+    method: 'POST', token: employeeAuth,
+    body: { category: 'other', categoryLabel: 'Visa fee', expenseDate: '2026-07-11', amount: 900, description: 'Business visa' },
+  });
+  assert.equal(other.status, 201);
+  assert.equal(other.data.reimbursement.category, 'other');
+
+  // With "Other" switched off, an unlisted category is refused.
+  const locked = await call('/api/v1/companies/request-options', {
+    method: 'PATCH', token: adminAuth, body: { allowOtherReimbursementCategory: false },
+  });
+  assert.equal(locked.status, 200);
+  const refused = await call('/api/v1/reimbursements', {
+    method: 'POST', token: employeeAuth,
+    body: { category: 'yacht_hire', expenseDate: '2026-07-12', amount: 100, description: 'Not a category' },
+  });
+  assert.equal(refused.status, 400);
+  assert.match(refused.message, /configured categories/i);
+
+  // Restore, so later tests see the seeded configuration.
+  await call('/api/v1/companies/request-options', {
+    method: 'PATCH', token: adminAuth, body: { allowOtherReimbursementCategory: true },
+  });
+
+  // Duplicate codes collapse rather than producing two options writing one value.
+  const deduped = await call('/api/v1/companies/request-options', {
+    method: 'PATCH',
+    token: adminAuth,
+    body: { grievanceCategories: [{ name: 'Payroll' }, { name: 'payroll' }, { name: 'IT access' }] },
+  });
+  assert.equal(deduped.status, 200);
+  assert.equal(deduped.data.requestOptions.grievanceCategories.length, 2);
+});
+
+test('an employee can see their own attendance and leave figures', async () => {
+  const employeeLogin = await call('/api/v1/auth/login', {
+    method: 'POST', body: { companyCode: 'TESTCO', employeeId: 'EMP001', passcode: '1234' },
+  });
+  const employeeAuth = employeeLogin.data.accessToken;
+
+  const month = await call('/api/v1/attendance/my-summary?period=2026-07', { token: employeeAuth });
+  assert.equal(month.status, 200);
+  const summary = month.data.summary;
+  assert.equal(summary.period, '2026-07');
+  // The old self-service summary hardcoded absentDays to 0, which hid the one
+  // figure that costs somebody money.
+  for (const key of ['presentDays', 'absentDays', 'paidLeaveDays', 'unpaidLeaveDays', 'lossOfPayDays', 'payableDays', 'weeklyOffDays']) {
+    assert.equal(typeof summary[key], 'number', `${key} should be reported`);
+  }
+  assert.ok(Array.isArray(summary.days) && summary.days.length > 0, 'expected a day-by-day breakdown');
+  assert.equal(typeof summary.lateDays, 'number');
+
+  const bad = await call('/api/v1/attendance/my-summary?period=nonsense', { token: employeeAuth });
+  assert.equal(bad.status, 200, 'an unreadable period falls back to the current month');
+
+  const year = await call('/api/v1/attendance/my-year?year=2026', { token: employeeAuth });
+  assert.equal(year.status, 200);
+  assert.equal(year.data.year, 2026);
+  assert.equal(year.data.months.length, 12, 'a chart needs a stable twelve-column shape');
+  assert.ok(year.data.months.some((item) => item.future), 'future months are marked, not counted as absence');
+  assert.equal(typeof year.data.totals.presentDays, 'number');
+  // Leave usage is grouped per type with the allowance beside it.
+  const casualUsage = year.data.leaveUsage.types.find((item) => item.code === 'casual');
+  assert.ok(casualUsage, 'expected casual leave in the usage breakdown');
+  assert.equal(typeof casualUsage.remaining, 'number');
+  assert.equal(typeof casualUsage.overAllowance, 'number');
+
+  const badYear = await call('/api/v1/attendance/my-year?year=99', { token: employeeAuth });
+  assert.equal(badYear.status, 400);
+});
+
+test('geofence events create attendance automatically, and boundary jitter cannot duplicate it', async () => {
+  const adminAuth = await adminToken();
+  const employeeLogin = await call('/api/v1/auth/login', {
+    method: 'POST', body: { companyCode: 'TESTCO', employeeId: 'EMP001', passcode: '1234' },
+  });
+  const employeeAuth = employeeLogin.data.accessToken;
+
+  // The device needs somewhere to watch before anything can fire.
+  const regions = await call('/api/v1/attendance/geofence-regions', { token: employeeAuth });
+  assert.equal(regions.status, 200);
+  assert.ok(regions.data.regions.length > 0, 'expected at least one geofence region');
+  const region = regions.data.regions[0];
+  for (const key of ['identifier', 'latitude', 'longitude', 'radius']) {
+    assert.ok(region[key] !== undefined, `region.${key} is required to arm geofencing`);
+  }
+  assert.ok(regions.data.operatingHours.start, 'operating hours are needed to gate events');
+
+  const inside = { latitude: region.latitude, longitude: region.longitude, accuracy: 12 };
+  const day = '2026-09-14';
+
+  // Arriving records a real check-in, labelled as automatic.
+  const arrive = await call('/api/v1/attendance/auto', {
+    method: 'POST', token: employeeAuth,
+    body: { event: 'enter', location: inside, regionId: region.identifier, occurredAt: `${day}T09:20:00.000Z` },
+  });
+  assert.equal(arrive.status, 200);
+  assert.equal(arrive.data.outcome, 'checked_in');
+  assert.equal(arrive.data.recorded, true);
+  assert.equal(arrive.data.attendance.checkIn.method, 'geofence_auto');
+  const firstCheckIn = arrive.data.attendance.checkIn.time;
+
+  // A phone sitting on the boundary re-fires "enter". That must not move the
+  // check-in, and must not be reported as a failure the device would retry.
+  const jitter = await call('/api/v1/attendance/auto', {
+    method: 'POST', token: employeeAuth,
+    body: { event: 'enter', location: inside, occurredAt: `${day}T09:25:00.000Z` },
+  });
+  assert.equal(jitter.status, 200);
+  assert.equal(jitter.data.outcome, 'already_checked_in');
+  assert.equal(jitter.data.recorded, false);
+  assert.equal(jitter.data.attendance.checkIn.time, firstCheckIn, 'the original check-in must stand');
+
+  // Leaving closes the day and computes worked minutes.
+  const leave = await call('/api/v1/attendance/auto', {
+    method: 'POST', token: employeeAuth,
+    body: { event: 'exit', location: inside, occurredAt: `${day}T18:00:00.000Z` },
+  });
+  assert.equal(leave.status, 200);
+  assert.equal(leave.data.outcome, 'checked_out');
+  assert.ok(leave.data.attendance.workDuration > 0, 'expected worked minutes to be computed');
+
+  // A stale exit arriving late must not shorten the day.
+  const stale = await call('/api/v1/attendance/auto', {
+    method: 'POST', token: employeeAuth,
+    body: { event: 'exit', location: inside, occurredAt: `${day}T17:00:00.000Z` },
+  });
+  assert.equal(stale.data.outcome, 'ignored_older_exit');
+  assert.equal(stale.data.attendance.checkOut.time, leave.data.attendance.checkOut.time);
+
+  // Stepping out and back reopens the day rather than stranding the check-out.
+  const back = await call('/api/v1/attendance/auto', {
+    method: 'POST', token: employeeAuth,
+    body: { event: 'enter', location: inside, occurredAt: `${day}T18:30:00.000Z` },
+  });
+  assert.equal(back.data.outcome, 'reopened');
+  assert.equal(back.data.attendance.checkOut, null);
+
+  // Being outside every area is refused, so presence cannot be faked remotely.
+  const remote = await call('/api/v1/attendance/auto', {
+    method: 'POST', token: employeeAuth,
+    body: { event: 'enter', location: { latitude: 0, longitude: 0 }, occurredAt: `${day}T09:00:00.000Z` },
+  });
+  assert.equal(remote.status, 409);
+  assert.match(remote.message, /outside every approved area/i);
+
+  // A malformed event is rejected outright.
+  const nonsense = await call('/api/v1/attendance/auto', {
+    method: 'POST', token: employeeAuth, body: { event: 'wander', location: inside },
+  });
+  assert.equal(nonsense.status, 400);
+
+  // HR can still see the automatic punch in the register.
+  const register = await call(`/api/v1/attendance/employee/${employeeLogin.data.employee._id}?period=2026-09`, { token: adminAuth });
+  assert.equal(register.status, 200);
+  assert.ok(register.data.records.some((item) => item.dateKey === day), 'the automatic day should appear for HR');
+});
+
+test('leave credits reset each year and pending requests reserve them', async () => {
+  const employeeLogin = await call('/api/v1/auth/login', {
+    method: 'POST', body: { companyCode: 'TESTCO', employeeId: 'EMP001', passcode: '1234' },
+  });
+  const employeeAuth = employeeLogin.data.accessToken;
+
+  const balance = await call('/api/v1/leaves/balance', { token: employeeAuth });
+  assert.equal(balance.status, 200);
+  assert.ok(balance.data.year, 'a balance belongs to a year');
+  const casual = balance.data.credits.find((item) => item.code === 'casual');
+  assert.ok(casual, 'expected casual credit');
+  for (const key of ['credit', 'used', 'pending', 'available']) {
+    assert.equal(typeof casual[key], 'number', `credits.${key} should be reported`);
+  }
+
+  // A pending request must reserve credit, otherwise several requests each pass the
+  // check and together exceed the allowance.
+  const first = await call('/api/v1/leaves/apply', {
+    method: 'POST', token: employeeAuth,
+    body: { leaveType: 'casual', startDate: '2026-11-16', endDate: '2026-11-17', reason: 'Family event' },
+  });
+  assert.equal(first.status, 201);
+
+  const afterPending = await call('/api/v1/leaves/balance', { token: employeeAuth });
+  const casualAfter = afterPending.data.credits.find((item) => item.code === 'casual');
+  assert.ok(casualAfter.pending >= 2, 'pending days should be reserved');
+  assert.equal(casualAfter.available, Number((casualAfter.credit - casualAfter.used - casualAfter.pending).toFixed(2)));
+
+  // Each year gets its own credits rather than carrying a used-up balance forever.
+  const nextYear = await call('/api/v1/leaves/balance?year=2027', { token: employeeAuth });
+  assert.equal(nextYear.data.year, 2027);
+  const casualNext = nextYear.data.credits.find((item) => item.code === 'casual');
+  assert.equal(casualNext.used, 0, 'a new year starts with credits unused');
+  assert.equal(casualNext.available, casualNext.credit);
+});
+
+test('overtime is claimed by the employee and only HR can approve the hours', async () => {
+  const adminAuth = await adminToken();
+  const employeeLogin = await call('/api/v1/auth/login', {
+    method: 'POST', body: { companyCode: 'TESTCO', employeeId: 'EMP001', passcode: '1234' },
+  });
+  const employeeAuth = employeeLogin.data.accessToken;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+  // Presence alone must not pay: hours are claimed, then decided.
+  const claim = await call('/api/v1/overtime', {
+    method: 'POST', token: employeeAuth,
+    body: { date: yesterday, hours: 3, reason: 'Release deployment support' },
+  });
+  assert.equal(claim.status, 201);
+  assert.equal(claim.data.overtime.status, 'pending');
+  assert.equal(claim.data.overtime.payableHours, 0, 'nothing is payable before approval');
+  const id = claim.data.overtime._id;
+
+  // Guard rails.
+  const future = await call('/api/v1/overtime', {
+    method: 'POST', token: employeeAuth, body: { date: '2027-01-01', hours: 2, reason: 'Planned' },
+  });
+  assert.equal(future.status, 400);
+  const duplicate = await call('/api/v1/overtime', {
+    method: 'POST', token: employeeAuth, body: { date: yesterday, hours: 1, reason: 'Again' },
+  });
+  assert.equal(duplicate.status, 409);
+  const tooLong = await call('/api/v1/overtime', {
+    method: 'POST', token: employeeAuth, body: { date: '2026-06-01', hours: 20, reason: 'All night' },
+  });
+  assert.equal(tooLong.status, 400);
+
+  // An employee cannot approve their own claim.
+  const selfApprove = await call(`/api/v1/overtime/${id}/review`, {
+    method: 'POST', token: employeeAuth, body: { action: 'approve' },
+  });
+  assert.equal(selfApprove.status, 403);
+
+  // An approver may allow fewer hours than claimed, never more.
+  const tooMany = await call(`/api/v1/overtime/${id}/review`, {
+    method: 'POST', token: adminAuth, body: { action: 'approve', approvedHours: 5 },
+  });
+  assert.equal(tooMany.status, 400);
+
+  const approved = await call(`/api/v1/overtime/${id}/review`, {
+    method: 'POST', token: adminAuth, body: { action: 'approve', approvedHours: 2.5, comments: 'Two and a half allowed' },
+  });
+  assert.equal(approved.status, 200);
+  assert.equal(approved.data.overtime.status, 'approved');
+  assert.equal(approved.data.overtime.approvedHours, 2.5);
+  assert.equal(approved.data.overtime.claimedHours, 3, 'the original claim is preserved for audit');
+  assert.equal(approved.data.overtime.payableHours, 2.5);
+
+  const again = await call(`/api/v1/overtime/${id}/review`, {
+    method: 'POST', token: adminAuth, body: { action: 'reject' },
+  });
+  assert.equal(again.status, 409, 'a decided claim cannot be decided twice');
+
+  // Payroll reads approved hours per period.
+  const period = yesterday.slice(0, 7);
+  const summary = await call(`/api/v1/overtime/approved?period=${period}`, { token: adminAuth });
+  assert.equal(summary.status, 200);
+  assert.ok(summary.data.totalHours >= 2.5);
+});
+
+test('travel mileage is priced from distance at the company rate', async () => {
+  const employeeLogin = await call('/api/v1/auth/login', {
+    method: 'POST', body: { companyCode: 'TESTCO', employeeId: 'EMP001', passcode: '1234' },
+  });
+  const employeeAuth = employeeLogin.data.accessToken;
+
+  const options = await call('/api/v1/companies/request-options', { token: employeeAuth });
+  const codes = options.data.reimbursementCategories.map((item) => item.code);
+  for (const expected of ['travel_local', 'travel_outstation', 'travel_mileage']) {
+    assert.ok(codes.includes(expected), `expected a ${expected} category`);
+  }
+
+  // 40 km by car at the seeded rate of 12 per km.
+  const mileage = await call('/api/v1/reimbursements', {
+    method: 'POST', token: employeeAuth,
+    body: {
+      category: 'travel_mileage', travelMode: 'car', distanceKm: 40,
+      expenseDate: '2026-07-20', description: 'Client site visit and back',
+    },
+  });
+  assert.equal(mileage.status, 201);
+  assert.equal(mileage.data.reimbursement.amount, 480);
+  assert.equal(mileage.data.reimbursement.travel.distanceKm, 40);
+  assert.equal(mileage.data.reimbursement.travel.ratePerKm, 12);
+
+  // Distance is required, and the mode has to be one the company allows.
+  const noDistance = await call('/api/v1/reimbursements', {
+    method: 'POST', token: employeeAuth,
+    body: { category: 'travel_mileage', travelMode: 'car', expenseDate: '2026-07-21', description: 'Visit' },
+  });
+  assert.equal(noDistance.status, 400);
+  const badMode = await call('/api/v1/reimbursements', {
+    method: 'POST', token: employeeAuth,
+    body: { category: 'travel_mileage', travelMode: 'helicopter', distanceKm: 10, expenseDate: '2026-07-21', description: 'Visit' },
+  });
+  assert.equal(badMode.status, 400);
+});

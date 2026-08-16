@@ -5,6 +5,7 @@ import { Loader2, MapPin, RefreshCw, X } from 'lucide-react'
 import {
   Badge,
   DataTable,
+  EmployeeProfileLink,
   EmptyState,
   Field,
   SearchableSelect,
@@ -12,6 +13,7 @@ import {
   TabBar,
   fieldClass,
   humanize,
+  type EmployeeProfileTab,
   type Option,
 } from './ui'
 
@@ -61,6 +63,7 @@ type Props = {
   policyLabel?: string
   areas: Array<{ _id: string; name: string; address?: string }>
   workLocations: Array<{ _id: string; name: string }>
+  onOpenEmployee?: (employeeId: string, tab: EmployeeProfileTab, period?: string) => void
   onError?: (message: string) => void
 }
 
@@ -149,14 +152,18 @@ function GeofenceCell({ row }: { row: AttendanceTeamRow }) {
   )
 }
 
-function attendanceRows(rows: AttendanceTeamRow[]) {
+function attendanceRows(
+  rows: AttendanceTeamRow[],
+  period: string,
+  onOpenEmployee?: (employeeId: string, tab: EmployeeProfileTab, period?: string) => void,
+) {
   return rows.map((row) => {
     const status = rowStatus(row)
     const checkIn = formatTime(row.attendance?.checkIn?.time)
     const checkOut = formatTime(row.attendance?.checkOut?.time)
     return [
       <div key="employee" className="min-w-0">
-        <p className="font-semibold text-slate-800">{employeeName(row)}</p>
+        <EmployeeProfileLink employeeId={row.employee._id} tab="attendance" period={period} onOpen={onOpenEmployee}>{employeeName(row)}</EmployeeProfileLink>
         <p className="text-xs text-slate-500">{row.employee.employeeId}</p>
       </div>,
       <div key="status" className="flex flex-wrap gap-1.5">
@@ -176,7 +183,7 @@ function attendanceRows(rows: AttendanceTeamRow[]) {
 
 const TABLE_HEADERS = ['Employee', 'Status', 'Check in', 'Check out', 'Hours', 'Geofence', 'Work location', 'Payable', 'Month LOP']
 
-export default function AttendanceWorkspace({ apiRoot, token, policyLabel, areas, workLocations, onError }: Props) {
+export default function AttendanceWorkspace({ apiRoot, token, policyLabel, areas, workLocations, onOpenEmployee, onError }: Props) {
   const [tab, setTab] = useState<TabKey>('register')
   const [date, setDate] = useState(() => today())
   const [areaId, setAreaId] = useState('')
@@ -317,7 +324,7 @@ export default function AttendanceWorkspace({ apiRoot, token, policyLabel, areas
           </div>
           <div className="mt-5">
             {rows.length ? (
-              <DataTable headers={TABLE_HEADERS} rows={attendanceRows(rows)} searchable searchPlaceholder="Filter loaded rows" />
+              <DataTable headers={TABLE_HEADERS} rows={attendanceRows(rows, date.slice(0, 7), onOpenEmployee)} searchable searchPlaceholder="Filter loaded rows" />
             ) : (
               <EmptyState
                 label={filtersApplied ? 'No attendance matches these filters' : 'No attendance recorded for this date'}
@@ -348,7 +355,7 @@ export default function AttendanceWorkspace({ apiRoot, token, policyLabel, areas
                   }
                 >
                   {group.rows?.length ? (
-                    <DataTable headers={TABLE_HEADERS} rows={attendanceRows(group.rows)} defaultPageSize={10} />
+                    <DataTable headers={TABLE_HEADERS} rows={attendanceRows(group.rows, date.slice(0, 7), onOpenEmployee)} defaultPageSize={10} />
                   ) : (
                     <EmptyState label="No employees matched this area" />
                   )}
@@ -371,7 +378,7 @@ export default function AttendanceWorkspace({ apiRoot, token, policyLabel, areas
                     Review these rows before payroll. No area centre distance is available for them.
                   </p>
                   {unassigned.rows?.length ? (
-                    <DataTable headers={TABLE_HEADERS} rows={attendanceRows(unassigned.rows)} defaultPageSize={10} />
+                    <DataTable headers={TABLE_HEADERS} rows={attendanceRows(unassigned.rows, date.slice(0, 7), onOpenEmployee)} defaultPageSize={10} />
                   ) : (
                     <EmptyState label="No unmatched check ins" hint="Every recorded check in fell inside a geofence." />
                   )}

@@ -6,7 +6,7 @@ import {
   CalendarDays, Check, ChevronLeft, ChevronRight, FileSpreadsheet, FileText, History, Inbox, KeyRound, Laptop, Loader2, LogOut, MapPin, Menu, Monitor, Network, Pencil, Plus, RefreshCw, Search, Settings, Upload,
   Receipt, Rocket, ShieldCheck, Star, Trash2, UserCheck, UserX, Wallet, TrendingUp, Users, X, XCircle, type LucideIcon,
 } from 'lucide-react'
-import { SearchableSelect, humanize, type Option } from './components/ui'
+import { EmployeeProfileLink, Modal, SearchableSelect, humanize, type EmployeeProfileTab, type Option } from './components/ui'
 import AssetsWorkspace from './components/AssetsWorkspace'
 import OnboardingWorkspace from './components/OnboardingWorkspace'
 import ImportWorkspace from './components/ImportWorkspace'
@@ -15,6 +15,7 @@ import CalendarWorkspace from './components/CalendarWorkspace'
 import NotificationCentre from './components/NotificationCentre'
 import CompanyProfileCard from './components/CompanyProfileCard'
 import WorkWeekCard from './components/WorkWeekCard'
+import EmployeeProfile from './components/EmployeeProfile'
 import EmployeeFormFields, { FormSection, Labelled, useEmployeeFormState, type OrgPickerProps } from './components/EmployeeForm'
 import AttendanceWorkspace from './components/AttendanceWorkspace'
 import OrgWorkspace from './components/OrgWorkspace'
@@ -30,7 +31,7 @@ import PayrollWorkspace, {
 
 type UserRole = 'manager' | 'hr' | 'admin' | 'super_admin'
 type BillingMode = 'automatic' | 'manual_online' | 'manual_offline' | 'custom'
-type PageKey = 'dashboard' | 'onboarding' | 'employees' | 'org' | 'calendar' | 'imports' | 'plans' | 'companies' | 'company-detail' | 'leads' | 'audit' | 'attendance' | 'leaves' | 'wfh' | 'grievances' | 'reimbursements' | 'payroll' | 'work' | 'assets' | 'desktop' | 'geofences' | 'subscriptions' | 'settings'
+type PageKey = 'dashboard' | 'onboarding' | 'employees' | 'employee-detail' | 'org' | 'calendar' | 'imports' | 'plans' | 'companies' | 'company-detail' | 'leads' | 'audit' | 'attendance' | 'leaves' | 'wfh' | 'grievances' | 'reimbursements' | 'payroll' | 'work' | 'assets' | 'desktop' | 'geofences' | 'subscriptions' | 'settings'
 type EmployeeSalary = Partial<SalaryStructureRecord['structure']> & { earningOverrides?: Array<{ code: string; name: string; calculation: string; value: number; taxable?: boolean; prorate?: boolean }> }
 type Employee = { _id: string; companyId: string; employeeId: string; firstName?: string; lastName?: string; name: string; email: string; phone?: string | null; department: string; designation: string; role: string; status: string; managerId?: string | null; departmentId?: string | null; designationId?: string | null; workLocationId?: string | null; employmentType?: string; dateOfBirth?: string | null; profile?: Record<string, string>; permissionGrants?: string[]; permissionRevokes?: string[]; dateOfJoining?: string; lastWorkingDate?: string | null; salary?: EmployeeSalary; company?: { _id: string; code: string; name: string } | null }
 type AttendancePolicy = {
@@ -62,9 +63,9 @@ type Company = { _id: string; code: string; name: string; email: string; phone?:
 type AttendanceDay = { date: string; status: string; source: string; payableDays: number; lossOfPayDays: number; workDuration: number; isLate: boolean; lateByMinutes: number }
 type AttendanceSummary = { eligibleDays: number; presentDays: number; fullPresentDays: number; halfDayDays: number; workFromHomeDays: number; paidLeaveDays: number; unpaidLeaveDays: number; unnoticedAbsenceDays: number; lossOfPayDays: number; payableDays: number; payrollImpact: AttendancePolicy['payrollImpact'] }
 type AttendanceRow = { employee: { _id: string; employeeId: string; firstName: string; lastName: string }; attendance: { checkIn?: { time: string }; checkOut?: { time: string }; workDuration?: number; status?: string; isLate?: boolean } | null; day?: AttendanceDay | null; summary?: AttendanceSummary }
-type Leave = { _id: string; employee: { firstName: string; lastName: string; employeeId: string }; leaveType: string; startDate: string; endDate: string; days: number; status: string; reason?: string; currentLevel?: number; pendingApprover?: { level: number; approverRole: string; approver?: { firstName?: string; lastName?: string; employeeId?: string } | null } | null }
-type WfhRequest = { _id: string; employee: { firstName: string; lastName: string; employeeId: string }; startDate: string; endDate: string; reason: string; workFromLocation?: string; status: string }
-type Grievance = { _id: string; ticketNumber: string; employee?: { firstName: string; lastName: string; employeeId: string } | null; subject: string; description: string; category: string; priority: string; status: string; createdAt: string }
+type Leave = { _id: string; employee: { _id: string; firstName: string; lastName: string; employeeId: string }; leaveType: string; startDate: string; endDate: string; days: number; status: string; reason?: string; currentLevel?: number; pendingApprover?: { level: number; approverRole: string; approver?: { firstName?: string; lastName?: string; employeeId?: string } | null } | null }
+type WfhRequest = { _id: string; employee: { _id: string; firstName: string; lastName: string; employeeId: string }; startDate: string; endDate: string; reason: string; workFromLocation?: string; status: string }
+type Grievance = { _id: string; ticketNumber: string; employee?: { _id?: string; firstName: string; lastName: string; employeeId: string } | null; subject: string; description: string; category: string; priority: string; status: string; createdAt: string }
 type ReimbursementAttachment = { _id?: string; name: string; url?: string; kind?: 'https_url' | 'protected_file'; mimeType?: string; size?: number }
 type Reimbursement = { _id: string; claimNumber: string; employee: { _id: string; firstName: string; lastName: string; employeeId: string }; category: string; expenseDate: string; amount: number; approvedAmount?: number | null; description: string; merchant?: string; projectOrCostCenter?: string; attachments?: ReimbursementAttachment[]; status: string; paymentMethod?: 'through_payroll' | 'separate_payment' | null; payrollPeriod?: string | null; linkedPayrollId?: string | null; paymentReference?: string | null; paidAt?: string | null; createdAt: string }
 type Area = { _id: string; name: string; address: string; latitude: number; longitude: number; radiusMeters: number; active?: boolean; workLocationId?: string | null; workLocation?: { _id: string; name: string; code?: string } | null }
@@ -72,7 +73,7 @@ type WorkLocation = { _id: string; name: string; code?: string; city?: string; s
 type OrgMaster = { _id: string; name: string; code?: string; status?: string; departmentId?: string | null }
 type Summary = { employees: number; presentToday: number; pendingLeaves: number; activeGeofences: number; totalSeats?: number; monthlySubscription?: number; nextRenewalAt?: string | null; billingCycle?: string; planName?: string }
 type Payroll = PayrollRecord
-type DesktopMember = { employee: { employeeId: string; firstName: string; lastName: string }; activity: { summary?: { totalActiveSeconds: number; totalIdleSeconds: number; snapshots: number }; topApps?: Array<{ name?: string; app?: string; duration?: number }> } | null; states: Array<{ status: string; lastHeartbeatAt?: string }> }
+type DesktopMember = { employee: { _id: string; employeeId: string; firstName: string; lastName: string }; activity: { summary?: { totalActiveSeconds: number; totalIdleSeconds: number; snapshots: number }; topApps?: Array<{ name?: string; app?: string; duration?: number }> } | null; states: Array<{ status: string; lastHeartbeatAt?: string }> }
 type PlatformSummary = { companies: number; activeCompanies: number; pendingCompanies: number; suspendedCompanies: number; employees: number; monthlyRevenue: number; collectedAmount: number; pendingAmount: number; upcomingAmount: number; renewalAmount: number; openLeads: number }
 type Lead = { _id: string; kind: 'demo' | 'contact'; name: string; email: string; company?: string | null; employees?: string | null; message?: string | null; status: string; createdAt: string }
 type TenantSubscription = Subscription & { companyId: string; companyCode: string; companyName: string; monthlyRevenue: number; outstandingAmount: number; collectedAmount: number; pendingVerificationAmount: number }
@@ -130,20 +131,52 @@ const pageKeys = menuItems.map((item) => item.key)
  * as `?page=`, which survives a refresh, makes Back and Forward work, and lets a
  * screen be linked to or bookmarked.
  */
+const employeeProfileTabs: EmployeeProfileTab[] = ['overview', 'salary', 'payslips', 'attendance', 'leave', 'assets', 'access']
+
 function pageFromLocation(): PageKey | null {
   if (typeof window === 'undefined') return null
   const requested = new URLSearchParams(window.location.search).get('page')
   if (!requested) return null
-  // `company-detail` needs a company loaded in memory, so it is not restorable.
   if (requested === 'company-detail') return 'companies'
+  if (requested === 'employee-detail') {
+    return new URLSearchParams(window.location.search).get('id') ? 'employee-detail' : 'employees'
+  }
   return pageKeys.includes(requested as PageKey) ? (requested as PageKey) : null
+}
+
+function employeeContextFromLocation() {
+  if (typeof window === 'undefined') return { id: '', tab: 'overview' as EmployeeProfileTab, period: new Date().toISOString().slice(0, 7) }
+  const params = new URLSearchParams(window.location.search)
+  const requestedTab = params.get('tab') as EmployeeProfileTab | null
+  return {
+    id: params.get('id') || '',
+    tab: requestedTab && employeeProfileTabs.includes(requestedTab) ? requestedTab : 'overview' as EmployeeProfileTab,
+    period: /^\d{4}-\d{2}$/.test(params.get('period') || '') ? String(params.get('period')) : new Date().toISOString().slice(0, 7),
+  }
 }
 
 function writePageToLocation(page: PageKey, replace = false) {
   if (typeof window === 'undefined') return
   const url = new URL(window.location.href)
-  // The detail view has no restorable URL of its own; keep its parent in the bar.
-  url.searchParams.set('page', page === 'company-detail' ? 'companies' : page)
+  url.searchParams.set('page', page)
+  if (page !== 'employee-detail') {
+    url.searchParams.delete('id')
+    url.searchParams.delete('tab')
+    url.searchParams.delete('period')
+  }
+  const next = `${url.pathname}${url.search}`
+  if (replace) window.history.replaceState(null, '', next)
+  else window.history.pushState(null, '', next)
+}
+
+function writeEmployeeToLocation(id: string, tab: EmployeeProfileTab, period: string, replace = false) {
+  if (typeof window === 'undefined') return
+  const url = new URL(window.location.href)
+  url.searchParams.set('page', 'employee-detail')
+  url.searchParams.set('id', id)
+  url.searchParams.set('tab', tab)
+  if (tab === 'attendance') url.searchParams.set('period', period)
+  else url.searchParams.delete('period')
   const next = `${url.pathname}${url.search}`
   if (replace) window.history.replaceState(null, '', next)
   else window.history.pushState(null, '', next)
@@ -301,7 +334,7 @@ export default function AdminPortal() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const [modal, setModal] = useState<'company' | 'employee' | 'employee-edit' | 'area' | 'payment' | 'invoice' | 'wfh-assign' | null>(null)
+  const [modal, setModal] = useState<'company' | 'employee' | 'area' | 'payment' | 'invoice' | 'wfh-assign' | null>(null)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
@@ -310,6 +343,9 @@ export default function AdminPortal() {
   const [selectedCompanyBilling, setSelectedCompanyBilling] = useState<CompanyBilling | null>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<BillingInvoice | null>(null)
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const [employeeProfileTab, setEmployeeProfileTab] = useState<EmployeeProfileTab>(() => employeeContextFromLocation().tab)
+  const [employeeProfilePeriod, setEmployeeProfilePeriod] = useState(() => employeeContextFromLocation().period)
+  const [employeeProfileLoading, setEmployeeProfileLoading] = useState(false)
   const [payrollEmployeeToEdit, setPayrollEmployeeToEdit] = useState<string | null>(null)
   const [companyLoading, setCompanyLoading] = useState(false)
   const [attendance, setAttendance] = useState<AttendanceRow[]>([])
@@ -366,20 +402,35 @@ export default function AdminPortal() {
         sessionStorage.setItem('qhr-admin-company', data.user.company?.name || '')
       }).catch(() => undefined)
     }
-    // Restore the page from the URL so a refresh, however deep, stays put.
+    // Restore the page and employee context from the URL. Employee details are
+    // fetched by immutable ID after the stored session token is restored.
     const requested = pageFromLocation()
-    if (requested) setActivePage(requested)
-    else writePageToLocation('dashboard', true)
+    if (requested) {
+      setActivePage(requested)
+      if (requested === 'employee-detail') {
+        const context = employeeContextFromLocation()
+        setEmployeeProfileTab(context.tab)
+        setEmployeeProfilePeriod(context.period)
+      }
+    } else writePageToLocation('dashboard', true)
 
     if (window.innerWidth < 768) setSidebarOpen(false)
     setSidebarReady(true)
   }, [])
 
-  // Browser Back and Forward move between pages instead of leaving the console.
+  // Browser Back and Forward restore both the workspace and its employee context.
   useEffect(() => {
     function onPopState() {
       const requested = pageFromLocation()
       setActivePage(requested || 'dashboard')
+      if (requested === 'employee-detail') {
+        const context = employeeContextFromLocation()
+        setEmployeeProfileTab(context.tab)
+        setEmployeeProfilePeriod(context.period)
+        setSelectedEmployee((current) => current?._id === context.id ? current : null)
+      } else {
+        setSelectedEmployee(null)
+      }
       setSelectedCompany(null)
       setNotificationsOpen(false)
       window.scrollTo({ top: 0 })
@@ -387,6 +438,27 @@ export default function AdminPortal() {
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
+
+  // A profile must not depend on the currently loaded list page. This makes a
+  // copied URL, browser refresh, Back/Forward, and 100+ employee directories work.
+  useEffect(() => {
+    if (!token || activePage !== 'employee-detail') return
+    const context = employeeContextFromLocation()
+    if (!context.id || selectedEmployee?._id === context.id) return
+    let cancelled = false
+    setEmployeeProfileLoading(true)
+    setError('')
+    void api<{ employee: Employee }>(`/employees/${encodeURIComponent(context.id)}`, {}, token)
+      .then((data) => { if (!cancelled) setSelectedEmployee(data.employee) })
+      .catch((reason) => {
+        if (cancelled) return
+        setError(reason instanceof Error ? reason.message : 'Could not load employee profile')
+        setActivePage('employees')
+        writePageToLocation('employees', true)
+      })
+      .finally(() => { if (!cancelled) setEmployeeProfileLoading(false) })
+    return () => { cancelled = true }
+  }, [token, activePage, selectedEmployee?._id])
 
   const loadData = useCallback(async () => {
     if (!token) return
@@ -400,7 +472,10 @@ export default function AdminPortal() {
         isSuper ? api<{ summary: PlatformSummary; companies: Company[] }>('/admin/platform-dashboard', {}, token) : Promise.resolve(null),
         !isSuper ? api<{ summary: Summary }>('/admin/dashboard', {}, token) : Promise.resolve(null),
         loadAllEmployees(token),
-        userRole === 'admin' ? api<{ companies: Company[] }>('/companies', {}, token) : Promise.resolve(null),
+        // HR may also read and save company settings, so it needs the company
+        // record too. Without it the Settings form fell back to hardcoded
+        // defaults and every save looked like it did nothing.
+        canManagePeople ? api<{ companies: Company[] }>('/companies', {}, token).catch(() => null) : Promise.resolve(null),
         !isSuper ? api<{ attendances: AttendanceRow[]; policy: AttendancePolicy }>('/attendance/team', {}, token) : Promise.resolve(null),
         !isSuper ? api<{ leaves: Leave[] }>('/leaves/approvals/pending', {}, token) : Promise.resolve(null),
         !isSuper ? api<{ wfhRequests: WfhRequest[] }>('/wfh/pending', {}, token) : Promise.resolve(null),
@@ -674,35 +749,34 @@ export default function AdminPortal() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Plan update failed') }
   }
 
-  const filteredEmployees = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    if (!query) return employees
-    return employees.filter((employee) => `${Object.values(employee).join(' ')} ${employee.company?.name || ''} ${employee.company?.code || ''}`.toLowerCase().includes(query))
-  }, [employees, search])
-
   const visibleMenuItems = useMemo(() => menuItems.filter((item) => item.roles.includes(userRole)).map((item) => (
     userRole === 'super_admin' && platformMenuLabels[item.key] ? { ...item, ...platformMenuLabels[item.key] } : item
   )), [userRole])
 
   useEffect(() => {
     const companyDetailAllowed = activePage === 'company-detail' && userRole === 'super_admin' && selectedCompany
-    if (!companyDetailAllowed && !visibleMenuItems.some((item) => item.key === activePage)) {
+    const employeeDetailAllowed = activePage === 'employee-detail' && Boolean(selectedEmployee || employeeContextFromLocation().id || employeeProfileLoading)
+    if (!companyDetailAllowed && !employeeDetailAllowed && !visibleMenuItems.some((item) => item.key === activePage)) {
       setActivePage('dashboard')
       // Correct the URL too. Leaving `?page=plans` on a page this role cannot see
       // would show the Dashboard under the wrong address, and the next refresh
       // would try the same page again.
       writePageToLocation('dashboard', true)
     }
-  }, [activePage, selectedCompany, userRole, visibleMenuItems])
+  }, [activePage, employeeProfileLoading, selectedCompany, selectedEmployee, userRole, visibleMenuItems])
 
   if (!token) return <Login onAuthenticated={(nextToken, user) => { setToken(nextToken); setUserName(user.name); setUserRole(user.role); setUserCompany(user.company?.name || '') }} />
 
   const page = activePage === 'company-detail'
     ? { label: selectedCompany?.name || 'Company details', description: 'Tenant information, access, and employees' }
-    : visibleMenuItems.find((item) => item.key === activePage) || visibleMenuItems[0]
+    : activePage === 'employee-detail'
+      ? { label: selectedEmployee?.name || 'Employee', description: 'Profile, salary, payslips, attendance, and leave' }
+      : visibleMenuItems.find((item) => item.key === activePage) || visibleMenuItems[0]
   const activeGroup: MenuGroup = activePage === 'company-detail'
     ? 'Platform'
-    : (visibleMenuItems.find((item) => item.key === activePage) || visibleMenuItems[0])?.group || 'Overview'
+    : activePage === 'employee-detail'
+      ? 'People'
+      : (visibleMenuItems.find((item) => item.key === activePage) || visibleMenuItems[0])?.group || 'Overview'
   // Setup is unfinished. Drives the dashboard banner, the count on the Getting
   // started nav item, and the in-place notes on Payroll and Attendance.
   const setupPending = onboardingState?.status === 'in_progress'
@@ -711,12 +785,45 @@ export default function AdminPortal() {
     setActivePage(nextPage)
     setNotificationsOpen(false)
     if (nextPage !== 'company-detail') setSelectedCompany(null)
+    // Leaving the profile clears its subject, so a stale employee cannot reappear.
+    if (nextPage !== 'employee-detail' && nextPage !== 'payroll') setSelectedEmployee(null)
     writePageToLocation(nextPage)
     // Each page is a fresh document, so it starts at the top. Without this the
     // window keeps the previous page's offset and the next page opens
     // mid-content, or below it entirely when the new page is shorter.
     window.scrollTo({ top: 0 })
     if (window.innerWidth < 768) setSidebarOpen(false)
+  }
+
+  function openEmployee(employeeId: string, tab: EmployeeProfileTab = 'overview', period = new Date().toISOString().slice(0, 7)) {
+    const cached = employees.find((employee) => employee._id === employeeId)
+      || selectedCompanyEmployees.find((employee) => employee._id === employeeId)
+    setSelectedEmployee(cached || null)
+    setEmployeeProfileTab(tab)
+    setEmployeeProfilePeriod(period)
+    setActivePage('employee-detail')
+    setSelectedCompany(null)
+    setNotificationsOpen(false)
+    writeEmployeeToLocation(employeeId, tab, period)
+    window.scrollTo({ top: 0 })
+    if (window.innerWidth < 768) setSidebarOpen(false)
+  }
+
+  function changeEmployeeContext(tab: EmployeeProfileTab, period: string) {
+    if (!selectedEmployee) return
+    setEmployeeProfileTab(tab)
+    setEmployeeProfilePeriod(period)
+    writeEmployeeToLocation(selectedEmployee._id, tab, period)
+    window.scrollTo({ top: 0 })
+  }
+
+  async function saveEmployeeProfile(values: Record<string, unknown>) {
+    if (!selectedEmployee) return
+    const result = await api<{ employee: Employee }>(`/employees/${selectedEmployee._id}`, { method: 'PATCH', body: JSON.stringify(values) }, token)
+    setSelectedEmployee(result.employee)
+    setEmployees((current) => current.map((employee) => employee._id === result.employee._id ? result.employee : employee))
+    setNotice(`${result.employee.name} updated successfully.`)
+    await loadData()
   }
 
   return (
@@ -784,7 +891,7 @@ export default function AdminPortal() {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 overflow-x-hidden">
+      <main className="min-w-0 flex-1 overflow-x-clip">
         <div className="app-bar">
           <div className="shell-width flex items-center gap-3">
             <button aria-label="Toggle sidebar" onClick={() => setSidebarOpen((value) => !value)} className="ghost-button shrink-0 p-2"><Menu className="h-[18px] w-[18px]" /></button>
@@ -850,26 +957,51 @@ export default function AdminPortal() {
         )}
         {loading && !employees.length ? <div className="flex min-h-96 flex-col items-center justify-center gap-3 text-sm text-ink-soft"><Loader2 className="h-7 w-7 animate-spin text-primary-500" /><span>Loading your workspace…</span></div> : (
           <>
-            {activePage === 'dashboard' && (userRole === 'super_admin' ? <PlatformDashboard summary={platformSummary} companies={companies} openPage={openPage} onManage={(company) => void openCompany(company)} /> : <Dashboard summary={summary} attendance={attendance} leaves={leaves} openPage={openPage} canViewBilling={userRole === 'admin'} />)}
-            {activePage === 'employees' && <Employees employees={filteredEmployees} salaryStructures={salaryStructures} workLocations={workLocations} showCompany={userRole === 'super_admin'} onAdd={['manager', 'super_admin'].includes(userRole) ? undefined : () => setModal('employee')} onImport={['hr', 'admin'].includes(userRole) ? () => openPage('imports') : undefined} onEdit={['hr', 'admin'].includes(userRole) ? (employee) => { setSelectedEmployee(employee); setModal('employee-edit') } : undefined} onPayroll={['hr', 'admin'].includes(userRole) ? (employee) => { setPayrollEmployeeToEdit(employee._id); openPage('payroll') } : undefined} onResetPassword={['hr', 'admin'].includes(userRole) ? (employee) => void resetEmployeePassword(employee) : undefined} onStatus={userRole === 'admin' ? (employee, status) => void setEmployeeStatus(employee, status) : undefined} />}
+            {activePage === 'dashboard' && (userRole === 'super_admin' ? <PlatformDashboard summary={platformSummary} companies={companies} openPage={openPage} onManage={(company) => void openCompany(company)} /> : <Dashboard summary={summary} attendance={attendance} leaves={leaves} openPage={openPage} onOpenEmployee={openEmployee} canViewBilling={userRole === 'admin'} />)}
+            {activePage === 'employee-detail' && employeeProfileLoading && !selectedEmployee && <div className="flex min-h-80 items-center justify-center gap-2 text-sm text-ink-soft"><Loader2 className="h-5 w-5 animate-spin" /> Loading employee profile</div>}
+            {activePage === 'employee-detail' && selectedEmployee && (
+              <EmployeeProfile
+                key={selectedEmployee._id}
+                apiRoot={API_ROOT}
+                token={token}
+                employee={selectedEmployee}
+                tab={employeeProfileTab}
+                period={employeeProfilePeriod}
+                canManageSalary={['hr', 'admin'].includes(userRole)}
+                canEdit={['hr', 'admin', 'super_admin'].includes(userRole)}
+                roleOptions={userRole === 'super_admin' ? ['employee', 'manager', 'hr', 'admin', 'super_admin'] : userRole === 'admin' ? ['employee', 'manager', 'hr', 'admin'] : ['employee', 'manager', 'hr']}
+                managerOptions={employees.filter((item) => item._id !== selectedEmployee._id && item.companyId === selectedEmployee.companyId && ['manager', 'hr', 'admin'].includes(item.role) && item.status !== 'inactive').map((manager) => ({ value: manager._id, label: manager.name, hint: `${manager.employeeId} - ${manager.role.replace('_', ' ')}` }))}
+                departments={departments}
+                designations={designations}
+                workLocations={workLocations}
+                workLocationName={workLocations.find((item) => item._id === selectedEmployee.workLocationId)?.name}
+                managerName={employees.find((item) => item._id === selectedEmployee.managerId)?.name}
+                onBack={() => openPage('employees')}
+                onContextChange={changeEmployeeContext}
+                onSave={saveEmployeeProfile}
+                onResetPassword={['hr', 'admin'].includes(userRole) ? () => void resetEmployeePassword(selectedEmployee) : undefined}
+                onOpenPayroll={['hr', 'admin'].includes(userRole) ? () => { setPayrollEmployeeToEdit(selectedEmployee._id); openPage('payroll') } : undefined}
+              />
+            )}
+            {activePage === 'employees' && <Employees token={token} query={search} employees={employees} salaryStructures={salaryStructures} workLocations={workLocations} showCompany={userRole === 'super_admin'} onView={(employee) => openEmployee(employee._id, 'overview')} onAdd={['manager', 'super_admin'].includes(userRole) ? undefined : () => setModal('employee')} onImport={['hr', 'admin'].includes(userRole) ? () => openPage('imports') : undefined} onPayroll={['hr', 'admin'].includes(userRole) ? (employee) => { setPayrollEmployeeToEdit(employee._id); openPage('payroll') } : undefined} onResetPassword={['hr', 'admin'].includes(userRole) ? (employee) => void resetEmployeePassword(employee) : undefined} onStatus={userRole === 'admin' ? (employee, status) => void setEmployeeStatus(employee, status) : undefined} />}
             {activePage === 'onboarding' && <OnboardingWorkspace apiRoot={API_ROOT} token={token} role={userRole as 'hr' | 'admin'} onChanged={async (message) => { setNotice(message); await loadData() }} />}
             {activePage === 'org' && <OrgWorkspace apiRoot={API_ROOT} token={token} role={userRole as 'manager' | 'hr' | 'admin'} employees={employees} onChanged={async (message) => { setNotice(message); await loadData() }} />}
             {activePage === 'imports' && <ImportWorkspace apiRoot={API_ROOT} token={token} employees={employees.map((item) => ({ _id: item._id, name: item.name, employeeId: item.employeeId, workLocationId: item.workLocationId }))} onChanged={async (message) => { setNotice(message); await loadData() }} />}
             {activePage === 'plans' && <PlanCatalogue apiRoot={API_ROOT} token={token} onChanged={async (message) => { setNotice(message); await loadData() }} />}
             {activePage === 'calendar' && <CalendarWorkspace apiRoot={API_ROOT} token={token} canManage={userRole === 'admin' || userRole === 'hr'} onChanged={async (message) => { setNotice(message); await loadData() }} />}
             {activePage === 'companies' && <Companies companies={companies} onAdd={() => setModal('company')} onManage={(company) => void openCompany(company)} onStatus={(company, status) => void updateCompany(company, status)} />}
-            {activePage === 'company-detail' && selectedCompany && (companyLoading ? <div className="flex min-h-80 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary-500" /></div> : <CompanyDetail company={selectedCompany} billing={selectedCompanyBilling} employees={selectedCompanyEmployees} auditLogs={selectedCompanyAudit} onBack={() => openPage('companies')} onSave={(values) => void saveCompany(selectedCompany._id, values)} onStatus={(status) => void updateCompany(selectedCompany, status)} onArchive={() => void archiveCompany(selectedCompany)} onAddEmployee={() => setModal('employee')} onEditEmployee={(employee) => { setSelectedEmployee(employee); setModal('employee-edit') }} onEmployeeStatus={(employee, status) => void setEmployeeStatus(employee, status)} onRecordPayment={openPayment} onCreateInvoice={() => setModal('invoice')} />)}
+            {activePage === 'company-detail' && selectedCompany && (companyLoading ? <div className="flex min-h-80 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary-500" /></div> : <CompanyDetail company={selectedCompany} billing={selectedCompanyBilling} employees={selectedCompanyEmployees} auditLogs={selectedCompanyAudit} onBack={() => openPage('companies')} onSave={(values) => void saveCompany(selectedCompany._id, values)} onStatus={(status) => void updateCompany(selectedCompany, status)} onArchive={() => void archiveCompany(selectedCompany)} onAddEmployee={() => setModal('employee')} onEditEmployee={(employee) => openEmployee(employee._id, 'overview')} onEmployeeStatus={(employee, status) => void setEmployeeStatus(employee, status)} onRecordPayment={openPayment} onCreateInvoice={() => setModal('invoice')} />)}
             {activePage === 'leads' && <Leads leads={leads} update={(lead, status) => void updateLead(lead, status)} />}
             {activePage === 'audit' && <PlatformAudit auditLogs={platformAudit} />}
-            {activePage === 'attendance' && <AttendanceWorkspace apiRoot={API_ROOT} token={token} policyLabel={attendancePolicyLabel(attendancePolicy.payrollImpact)} areas={areas} workLocations={workLocations} onError={setError} />}
-            {activePage === 'leaves' && <Leaves leaves={leaves} review={reviewLeave} />}
-            {activePage === 'wfh' && <WfhRequests requests={wfhRequests} review={reviewWfh} onAssign={() => setModal('wfh-assign')} />}
-            {activePage === 'grievances' && <Grievances grievances={grievances} resolve={(id) => void resolveGrievance(id)} />}
-            {activePage === 'reimbursements' && <Reimbursements token={token} reimbursements={reimbursements} role={userRole} review={(id, values) => void reviewReimbursement(id, values)} markPaid={(id, reference, paidAt) => void markReimbursementPaid(id, reference, paidAt)} />}
-            {activePage === 'payroll' && <PayrollWorkspace apiRoot={API_ROOT} token={token} role={userRole as 'hr' | 'admin'} payroll={payroll} settings={payrollSettings} salaryStructures={salaryStructures} runs={payrollRuns} summary={payrollSummary} auditLogs={payrollAuditLogs} initialSalaryEmployeeId={payrollEmployeeToEdit} onInitialSalaryConsumed={() => setPayrollEmployeeToEdit(null)} onOpenPage={(page) => openPage(page as PageKey)} onChanged={async (message) => { setNotice(message); await loadData() }} />}
-            {activePage === 'work' && <WorkWorkspace apiRoot={API_ROOT} token={token} role={userRole as 'manager' | 'hr' | 'admin'} employees={employees} onChanged={async (message) => { setNotice(message); await loadData() }} />}
-            {activePage === 'assets' && <AssetsWorkspace apiRoot={API_ROOT} token={token} role={userRole as 'manager' | 'hr' | 'admin'} employees={employees} workLocations={workLocations} onChanged={async (message) => { setNotice(message); await loadData() }} />}
-            {activePage === 'desktop' && <DesktopView team={desktopTeam} />}
+            {activePage === 'attendance' && <AttendanceWorkspace apiRoot={API_ROOT} token={token} policyLabel={attendancePolicyLabel(attendancePolicy.payrollImpact)} areas={areas} workLocations={workLocations} onOpenEmployee={openEmployee} onError={setError} />}
+            {activePage === 'leaves' && <Leaves leaves={leaves} review={reviewLeave} onOpenEmployee={openEmployee} />}
+            {activePage === 'wfh' && <WfhRequests requests={wfhRequests} review={reviewWfh} onAssign={() => setModal('wfh-assign')} onOpenEmployee={openEmployee} />}
+            {activePage === 'grievances' && <Grievances grievances={grievances} resolve={(id) => void resolveGrievance(id)} onOpenEmployee={openEmployee} />}
+            {activePage === 'reimbursements' && <Reimbursements token={token} reimbursements={reimbursements} role={userRole} review={(id, values) => void reviewReimbursement(id, values)} markPaid={(id, reference, paidAt) => void markReimbursementPaid(id, reference, paidAt)} onOpenEmployee={openEmployee} />}
+            {activePage === 'payroll' && <PayrollWorkspace apiRoot={API_ROOT} token={token} role={userRole as 'hr' | 'admin'} payroll={payroll} settings={payrollSettings} salaryStructures={salaryStructures} runs={payrollRuns} summary={payrollSummary} auditLogs={payrollAuditLogs} initialSalaryEmployeeId={payrollEmployeeToEdit} onInitialSalaryConsumed={() => setPayrollEmployeeToEdit(null)} onOpenPage={(page) => openPage(page as PageKey)} onOpenEmployee={openEmployee} onChanged={async (message) => { setNotice(message); await loadData() }} />}
+            {activePage === 'work' && <WorkWorkspace apiRoot={API_ROOT} token={token} role={userRole as 'manager' | 'hr' | 'admin'} employees={employees} onOpenEmployee={openEmployee} onChanged={async (message) => { setNotice(message); await loadData() }} />}
+            {activePage === 'assets' && <AssetsWorkspace apiRoot={API_ROOT} token={token} role={userRole as 'manager' | 'hr' | 'admin'} employees={employees} workLocations={workLocations} onOpenEmployee={openEmployee} onChanged={async (message) => { setNotice(message); await loadData() }} />}
+            {activePage === 'desktop' && <DesktopView team={desktopTeam} onOpenEmployee={openEmployee} />}
             {activePage === 'geofences' && <Areas areas={areas} workLocations={workLocations} canManage={userRole === 'hr' || userRole === 'admin'} onAdd={() => { setSelectedArea(null); setModal('area') }} onEdit={(area) => { setSelectedArea(area); setModal('area') }} onDelete={(area) => void deleteArea(area)} onOpenLocations={() => openPage('org')} />}
             {activePage === 'subscriptions' && (userRole === 'super_admin' ? <PlatformSubscriptions plans={plans} subscriptions={tenantSubscriptions} summary={billingSummary} invoices={billingInvoices} payments={billingPayments} gateways={paymentGateways} onManage={(subscription) => { const company = companies.find((item) => item._id === subscription.companyId); if (company) void openCompany(company) }} onRecordPayment={openPayment} onPaymentStatus={(payment, status) => void updatePaymentStatus(payment, status)} onGatewayUpdate={(gateway, values) => void updateGateway(gateway, values)} /> : <Subscriptions token={token} plans={plans} current={currentPlan} summary={currentBillingSummary} invoices={currentInvoices} payments={currentPayments} gateways={paymentGateways} onSubmitted={async (message) => { setNotice(message); await loadData() }} />)}
             {activePage === 'settings' && <SettingsView userName={userName} apiRoot={API_ROOT} company={companies[0]} token={token} canEditCompany={userRole === 'admin'} onOpenPage={(page) => openPage(page as PageKey)} onCompanySaved={async (message) => { setNotice(message); await loadData() }} onSaved={async () => { setNotice('Workspace settings saved.'); await loadData() }} />}
@@ -880,7 +1012,6 @@ export default function AdminPortal() {
       </main>
       {modal === 'company' && <CompanyModal close={() => setModal(null)} done={async (message) => { setModal(null); setNotice(message); await loadData() }} />}
       {modal === 'employee' && <EmployeeSalaryModal token={token} userRole={userRole} employees={employees} companyId={userRole === 'super_admin' ? selectedCompany?._id : undefined} departments={departments} designations={designations} workLocations={workLocations} close={() => setModal(null)} onCreated={async (employee, openPayroll) => { await loadData(); if (selectedCompany) await loadCompanyDetails(selectedCompany._id, false); if (openPayroll && employee && userRole !== 'super_admin') { setPayrollEmployeeToEdit(employee._id) } }} done={async (message, employee, openPayroll) => { setModal(null); setNotice(message); await loadData(); if (selectedCompany) await loadCompanyDetails(selectedCompany._id, false); if (openPayroll && employee && userRole !== 'super_admin') { setPayrollEmployeeToEdit(employee._id); openPage('payroll') } }} />}
-      {modal === 'employee-edit' && selectedEmployee && <EmployeeSalaryEditModal token={token} userRole={userRole} employees={employees} employee={selectedEmployee} departments={departments} designations={designations} workLocations={workLocations} close={() => { setModal(null); setSelectedEmployee(null) }} done={async (message) => { setModal(null); setSelectedEmployee(null); setNotice(message); await loadData(); if (selectedCompany) await loadCompanyDetails(selectedCompany._id, false) }} />}
       {issuedCredentials && <Modal title="New one-time password" close={() => setIssuedCredentials(null)}><IssuedCredentials issued={issuedCredentials} onDone={() => setIssuedCredentials(null)} /></Modal>}
       {modal === 'area' && <AreaModal token={token} workLocations={workLocations} area={selectedArea} close={() => { setModal(null); setSelectedArea(null) }} done={async (message) => { setModal(null); setSelectedArea(null); setNotice(message); await loadData() }} />}
       {modal === 'payment' && selectedInvoice && <PaymentModal token={token} invoice={selectedInvoice} close={() => { setModal(null); setSelectedInvoice(null) }} done={async (message) => { setModal(null); setSelectedInvoice(null); setNotice(message); await loadData(); if (selectedCompany) await loadCompanyDetails(selectedCompany._id, false) }} />}
@@ -962,7 +1093,7 @@ function Toolbar({ title, action, onAction, onImport, exportRows }: { title: str
 
 function Card({ children, className = '' }: { children: ReactNode; className?: string }) { return <section className={`neu-card rounded-lg p-4 sm:p-5 ${className}`}>{children}</section> }
 
-function Dashboard({ summary, attendance, leaves, openPage, canViewBilling }: { summary: Summary; attendance: AttendanceRow[]; leaves: Leave[]; openPage: (page: PageKey) => void; canViewBilling: boolean }) {
+function Dashboard({ summary, attendance, leaves, openPage, onOpenEmployee, canViewBilling }: { summary: Summary; attendance: AttendanceRow[]; leaves: Leave[]; openPage: (page: PageKey) => void; onOpenEmployee: (id: string, tab: EmployeeProfileTab, period?: string) => void; canViewBilling: boolean }) {
   // Each tile carries the context that makes its number mean something. A "Live"
   // badge on all four said nothing, and a bare zero left people guessing whether
   // nobody had checked in or attendance simply was not set up yet.
@@ -983,7 +1114,7 @@ function Dashboard({ summary, attendance, leaves, openPage, canViewBilling }: { 
         [summary.planName, summary.nextRenewalAt ? `renews ${formatDate(summary.nextRenewalAt)}` : ''].filter(Boolean).join(' · ') || 'Current plan'] as const]
       : []),
   ]
-  return <><div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">{cards.map(([label, value, Icon, target, context]) => <button key={label} onClick={() => openPage(target)} className="neu-card group rounded-lg p-4 text-left transition-all duration-150 ease-enter hover:-translate-y-px hover:border-primary-200 hover:shadow-raised"><span className="mb-3 inline-flex rounded-md bg-primary-50 p-1.5 text-primary-600 ring-1 ring-inset ring-primary-100"><Icon className="h-[18px] w-[18px]" /></span><p className="text-2xl font-bold tracking-tight sm:text-[28px]">{value}</p><p className="mt-0.5 text-sm font-semibold text-ink-soft">{label}</p><p className="mt-1 text-xs leading-4 text-ink-muted">{context}</p></button>)}</div><div className="grid items-start gap-4 xl:grid-cols-3"><Card className="xl:col-span-2"><Toolbar title="Today's attendance" /><AttendanceTable rows={attendance} /></Card><Card className="self-start"><Toolbar title="Approval queue" /><div className="space-y-2">{leaves.slice(0, 5).map((leave) => <button key={leave._id} onClick={() => openPage('leaves')} className="neu-inset flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:border-primary-200 hover:bg-primary-50/40"><span className="min-w-0"><span className="block truncate text-sm font-semibold">{leave.employee.firstName} {leave.employee.lastName}</span><span className="block truncate text-xs text-ink-soft"><span className="capitalize">{leave.leaveType}</span> leave · {leave.days} {leave.days === 1 ? 'day' : 'days'}</span><span className="block truncate text-xs text-ink-muted">{formatDate(leave.startDate)}{leave.endDate && leave.endDate !== leave.startDate ? ` to ${formatDate(leave.endDate)}` : ''}</span></span><ChevronRight className="h-4 w-4 shrink-0 text-ink-muted" /></button>)}{!leaves.length && <Empty label="No pending approvals" />}</div></Card></div></>
+  return <><div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">{cards.map(([label, value, Icon, target, context]) => <button key={label} onClick={() => openPage(target)} className="neu-card group rounded-lg p-4 text-left transition-all duration-150 ease-enter hover:-translate-y-px hover:border-primary-200 hover:shadow-raised"><span className="mb-3 inline-flex rounded-md bg-primary-50 p-1.5 text-primary-600 ring-1 ring-inset ring-primary-100"><Icon className="h-[18px] w-[18px]" /></span><p className="text-2xl font-bold tracking-tight sm:text-[28px]">{value}</p><p className="mt-0.5 text-sm font-semibold text-ink-soft">{label}</p><p className="mt-1 text-xs leading-4 text-ink-muted">{context}</p></button>)}</div><div className="grid items-start gap-4 xl:grid-cols-3"><Card className="xl:col-span-2"><Toolbar title="Today's attendance" /><AttendanceTable rows={attendance} onOpenEmployee={onOpenEmployee} /></Card><Card className="self-start"><Toolbar title="Approval queue" /><div className="space-y-2">{leaves.slice(0, 5).map((leave) => <button key={leave._id} onClick={() => openPage('leaves')} className="neu-inset flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:border-primary-200 hover:bg-primary-50/40"><span className="min-w-0"><span className="block truncate text-sm font-semibold">{leave.employee.firstName} {leave.employee.lastName}</span><span className="block truncate text-xs text-ink-soft"><span className="capitalize">{leave.leaveType}</span> leave · {leave.days} {leave.days === 1 ? 'day' : 'days'}</span><span className="block truncate text-xs text-ink-muted">{formatDate(leave.startDate)}{leave.endDate && leave.endDate !== leave.startDate ? ` to ${formatDate(leave.endDate)}` : ''}</span></span><ChevronRight className="h-4 w-4 shrink-0 text-ink-muted" /></button>)}{!leaves.length && <Empty label="No pending approvals" />}</div></Card></div></>
 }
 
 function PlatformDashboard({ summary, companies, openPage, onManage }: { summary: PlatformSummary; companies: Company[]; openPage: (page: PageKey) => void; onManage: (company: Company) => void }) {
@@ -996,32 +1127,64 @@ function PlatformDashboard({ summary, companies, openPage, onManage }: { summary
   return <><div className="mb-4 grid grid-cols-2 gap-3 sm:mb-6 sm:gap-4 xl:grid-cols-4">{cards.map(([label, value, Icon, target]) => <button key={label} onClick={() => openPage(target)} className="neu-card rounded-lg p-3 text-left sm:p-5"><div className="mb-3 flex items-center justify-between sm:mb-4"><span className="rounded-lg bg-primary-50 p-1.5 text-primary-500 sm:p-2"><Icon className="h-5 w-5" /></span><span className="text-[11px] font-semibold text-emerald-600 sm:text-xs">Platform</span></div><p className="text-2xl font-bold sm:text-3xl">{value}</p><p className="mt-1 text-xs text-slate-500 sm:text-sm">{label}</p></button>)}</div><div className="grid items-start gap-4 sm:gap-5 xl:grid-cols-3"><Card className="xl:col-span-2"><Toolbar title="Tenant overview" /><Table headers={['Company', 'Users', 'Plan', 'Renewal', 'Outstanding', 'Status', 'Action']} rows={companies.map((company) => [<div key="company"><p className="font-semibold">{company.name}</p><p className="text-xs text-slate-500">{company.code}</p></div>, company.employeeCount || 0, company.subscription?.plan || 'Professional', formatCurrency(company.subscription?.renewalAmount || 0), formatCurrency(company.billingSummary?.outstandingAmount || 0), <Status key="status">{company.status || (company.isVerified ? 'active' : 'pending')}</Status>, <button key="manage" onClick={() => onManage(company)} className="gradient-button rounded-lg px-3 py-2 text-xs font-semibold">Manage</button>])} /></Card><Card className="self-start"><Toolbar title="Platform queue" /><div className="space-y-3"><button onClick={() => openPage('subscriptions')} className="neu-inset flex w-full items-center justify-between rounded-lg p-3 text-left"><span>Upcoming renewals</span><strong>{formatCurrency(summary.upcomingAmount)}</strong></button><button onClick={() => openPage('subscriptions')} className="neu-inset flex w-full items-center justify-between rounded-lg p-3 text-left"><span>Renewal book</span><strong>{formatCurrency(summary.renewalAmount)}</strong></button><button onClick={() => openPage('leads')} className="neu-inset flex w-full items-center justify-between rounded-lg p-3 text-left"><span>Open sales leads</span><strong>{summary.openLeads}</strong></button></div></Card></div></>
 }
 
-function Employees({ employees, salaryStructures, workLocations = [], onAdd, onImport, onEdit, onPayroll, onStatus, onResetPassword, showCompany = false }: { employees: Employee[]; salaryStructures: SalaryStructureRecord[]; workLocations?: WorkLocation[]; onAdd?: () => void; onImport?: () => void; onEdit?: (employee: Employee) => void; onPayroll?: (employee: Employee) => void; onStatus?: (employee: Employee, status: 'active' | 'inactive') => void; onResetPassword?: (employee: Employee) => void; showCompany?: boolean }) {
+function Employees({ token, query, employees, salaryStructures, workLocations = [], onAdd, onImport, onView, onPayroll, onStatus, onResetPassword, showCompany = false }: { token: string; query: string; employees: Employee[]; salaryStructures: SalaryStructureRecord[]; workLocations?: WorkLocation[]; onAdd?: () => void; onImport?: () => void; onView?: (employee: Employee) => void; onPayroll?: (employee: Employee) => void; onStatus?: (employee: Employee, status: 'active' | 'inactive') => void; onResetPassword?: (employee: Employee) => void; showCompany?: boolean }) {
+  const [directory, setDirectory] = useState<Employee[]>(() => employees.slice(0, 25))
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [pagination, setPagination] = useState({ page: 1, pages: Math.max(1, Math.ceil(employees.length / 25)), total: employees.length })
+  const [loading, setLoading] = useState(false)
+  const refreshKey = employees.map((employee) => `${employee._id}:${employee.status}`).join('|')
+
+  useEffect(() => { setPage(1) }, [query, statusFilter])
+  useEffect(() => {
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams({ page: String(page), limit: String(pageSize) })
+      if (query.trim()) params.set('q', query.trim())
+      if (statusFilter) params.set('status', statusFilter)
+      setLoading(true)
+      void api<{ employees: Employee[]; pagination: { page: number; pages: number; total: number } }>(`/employees?${params.toString()}`, {}, token)
+        .then((result) => {
+          if (cancelled) return
+          setDirectory(result.employees || [])
+          setPagination(result.pagination || { page: 1, pages: 1, total: 0 })
+        })
+        .catch(() => { if (!cancelled) setDirectory([]) })
+        .finally(() => { if (!cancelled) setLoading(false) })
+    }, 250)
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [token, query, statusFilter, page, pageSize, refreshKey])
+
   const locationNames = new Map(workLocations.map((item) => [item._id, item.name]))
-  const showActions = Boolean(onEdit || onPayroll || onStatus || onResetPassword)
+  const showActions = Boolean(onView || onPayroll || onStatus || onResetPassword)
   const showPayroll = Boolean(onPayroll)
   const salaryByEmployee = new Map(salaryStructures.map((item) => [item.employee._id, item.structure]))
   const headers = showCompany ? ['Employee', 'Company', 'Department', 'Role', 'Status'] : ['Employee', 'Department', 'Work location', 'Role', ...(showPayroll ? ['Payroll'] : []), 'Status', ...(showActions ? ['Actions'] : [])]
-  const rows = employees.map((employee) => {
-    const base = [<div key="name"><p className="font-semibold">{employee.name}</p><p className="text-xs text-slate-500">{employee.employeeId} - {employee.email}</p></div>]
+  const rows = directory.map((employee) => {
+    const base = [onView ? <div key="name"><EmployeeProfileLink employeeId={employee._id} onOpen={() => onView(employee)}>{employee.name}</EmployeeProfileLink><p className="text-xs text-slate-500">{employee.employeeId} - {employee.email}</p></div> : <div key="name"><p className="font-semibold">{employee.name}</p><p className="text-xs text-slate-500">{employee.employeeId} - {employee.email}</p></div>]
     if (showCompany) base.push(<div key="company"><p className="font-medium">{employee.company?.name || 'Platform'}</p><p className="text-xs text-slate-500">{employee.company?.code || '-'}</p></div>)
     const row: ReactNode[] = showCompany
       ? [...base, employee.department, employee.role.replace('_', ' ')]
-      : [
-        ...base,
-        employee.department,
-        <span key="location" className={employee.workLocationId ? '' : 'text-ink-muted'}>{locationNames.get(employee.workLocationId || '') || 'Payroll address'}</span>,
-        employee.role.replace('_', ' '),
-      ]
+      : [...base, employee.department, <span key="location" className={employee.workLocationId ? '' : 'text-ink-muted'}>{locationNames.get(employee.workLocationId || '') || 'Payroll address'}</span>, employee.role.replace('_', ' ')]
     if (showPayroll) {
       const structure = salaryByEmployee.get(employee._id)
       row.push(<Status key="payroll">{structure?.payrollEnabled ? 'active' : 'setup required'}</Status>)
     }
     row.push(<Status key="status">{employee.status}</Status>)
-    if (showActions) row.push(<div key="actions" className="flex flex-wrap gap-2">{onEdit && <button title="Edit employee" onClick={() => onEdit(employee)} className="neu-button rounded-lg p-2"><Pencil className="h-4 w-4" /></button>}{onPayroll && <button title="Configure payroll" onClick={() => onPayroll(employee)} className="neu-button flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold"><Wallet className="h-4 w-4" />Payroll</button>}{onResetPassword && <button title="Issue a new one-time password" onClick={() => onResetPassword(employee)} className="neu-button flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold"><KeyRound className="h-4 w-4" />Reset password</button>}{onStatus && <button onClick={() => onStatus(employee, employee.status === 'inactive' ? 'active' : 'inactive')} className={`rounded-lg px-2.5 py-2 text-xs font-semibold ${employee.status === 'inactive' ? 'bg-emerald-600 text-white' : 'neu-button text-red-600'}`}>{employee.status === 'inactive' ? 'Activate' : 'Deactivate'}</button>}</div>)
+    if (showActions) row.push(<div key="actions" className="flex flex-wrap gap-2">{onView && <button title={`Open ${employee.name}`} onClick={() => onView(employee)} className="gradient-button flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold"><UserCheck className="h-4 w-4" />View</button>}{onPayroll && <button title="Configure payroll" onClick={() => onPayroll(employee)} className="neu-button rounded-lg p-2"><Wallet className="h-4 w-4" /></button>}{onResetPassword && <button title="Issue a new one-time password" onClick={() => onResetPassword(employee)} className="neu-button rounded-lg p-2"><KeyRound className="h-4 w-4" /></button>}{onStatus && <button onClick={() => onStatus(employee, employee.status === 'inactive' ? 'active' : 'inactive')} className={`rounded-lg px-2.5 py-2 text-xs font-semibold ${employee.status === 'inactive' ? 'bg-emerald-600 text-white' : 'neu-button text-red-600'}`}>{employee.status === 'inactive' ? 'Activate' : 'Deactivate'}</button>}</div>)
     return row
   })
-  return <Card><Toolbar title={showCompany ? 'Platform employees' : 'Employees'} action={onAdd ? 'Add employee' : undefined} onAction={onAdd} onImport={onImport} exportRows={employees.map(({ employeeId, name, email, department, designation, status, company, workLocationId }) => ({ employeeId, name, email, company: company?.name || '', companyCode: company?.code || '', department, designation, workLocation: locationNames.get(workLocationId || '') || '', status }))} /><Table headers={headers} rows={rows} /></Card>
+
+  return <Card>
+    <Toolbar title={showCompany ? 'Platform employees' : 'Employees'} action={onAdd ? 'Add employee' : undefined} onAction={onAdd} onImport={onImport} />
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+      <label className="text-xs font-semibold text-ink-soft">Status <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="neu-input ml-2 rounded-md px-2 py-1.5 text-xs"><option value="">All</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
+      <span className="text-xs tabular-nums text-ink-soft">{loading ? 'Loading employees...' : `${pagination.total} employee${pagination.total === 1 ? '' : 's'}`}</span>
+    </div>
+    <Table headers={headers} rows={rows} paginateRows={false} />
+    {pagination.total > 0 && <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-ink-soft"><div className="flex items-center gap-2"><span>Rows</span><select aria-label="Employees per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1) }} className="neu-input rounded-md px-2 py-1 text-xs">{[10, 25, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}</select><span>{(pagination.page - 1) * pageSize + 1}-{Math.min(pagination.page * pageSize, pagination.total)} of {pagination.total}</span></div><div className="flex items-center gap-1.5"><button aria-label="Previous employee page" disabled={pagination.page <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))} className="neu-button rounded-md p-1.5 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button><span className="min-w-24 text-center font-semibold text-ink">Page {pagination.page} of {pagination.pages}</span><button aria-label="Next employee page" disabled={pagination.page >= pagination.pages || loading} onClick={() => setPage((current) => current + 1)} className="neu-button rounded-md p-1.5 disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button></div></div>}
+  </Card>
 }
 
 function Companies({ companies, onAdd, onManage, onStatus }: { companies: Company[]; onAdd: () => void; onManage: (company: Company) => void; onStatus: (company: Company, status: string) => void }) { return <Card><Toolbar title="Companies" action="Add company" onAction={onAdd} exportRows={companies.map((item) => ({ code: item.code, name: item.name, email: item.email, employees: item.employeeCount || 0, plan: item.subscription?.plan || '', status: item.status || 'active' }))} /><Table headers={['Company', 'Employees', 'Plan', 'Revenue', 'Status', 'Actions']} rows={companies.map((company) => { const inactive = ['suspended', 'archived'].includes(company.status || ''); return [<div key="company"><p className="font-semibold">{company.name}</p><p className="text-xs text-slate-500">{company.code} - {company.email}</p></div>, company.employeeCount || 0, company.subscription?.plan || 'Professional', `Rs.${company.monthlyRevenue || 0}`, <Status key="status">{company.status || (company.isVerified ? 'active' : 'pending')}</Status>, <div key="actions" className="flex gap-2"><button onClick={() => onManage(company)} className="gradient-button rounded-lg px-3 py-2 text-xs font-semibold">Manage</button><button onClick={() => onStatus(company, inactive ? 'active' : 'suspended')} className={`rounded-lg px-3 py-2 text-xs font-semibold ${inactive ? 'bg-emerald-600 text-white' : 'neu-button text-red-600'}`}>{inactive ? 'Reactivate' : 'Suspend'}</button></div>] })} /></Card> }
@@ -1066,18 +1229,18 @@ function CompanyDetail({ company, billing, employees, auditLogs, onBack, onSave,
       <button className="gradient-button rounded-lg px-4 py-3 font-semibold md:col-span-2 xl:col-span-3">Save company and billing</button>
     </form></Card>
     <Card><Toolbar title="Invoices" action="Create invoice" onAction={onCreateInvoice} exportRows={(billing?.invoices || []).map(({ invoiceNumber, issueDate, dueDate, total, amountPaid, amountDue, status }) => ({ invoiceNumber, issueDate, dueDate, total, amountPaid, amountDue, status }))} /><Table headers={['Invoice', 'Issued', 'Due', 'Total', 'Paid', 'Balance', 'Status', 'Action']} rows={(billing?.invoices || []).map((invoice) => [invoice.invoiceNumber, formatDate(invoice.issueDate), formatDate(invoice.dueDate), formatCurrency(invoice.total), formatCurrency(invoice.amountPaid), formatCurrency(invoice.amountDue), <Status key="status">{invoice.status}</Status>, invoice.amountDue > 0 ? <button key="payment" onClick={() => onRecordPayment(invoice)} className="gradient-button rounded-lg px-3 py-2 text-xs font-semibold">Record payment</button> : <span key="settled" className="text-xs text-slate-500">Settled</span>])} /></Card>
-    <Card><Toolbar title={`${company.name} employees`} action={company.status === 'active' ? 'Add employee' : undefined} onAction={company.status === 'active' ? onAddEmployee : undefined} exportRows={employees.map(({ employeeId, name, email, department, designation, role, status }) => ({ employeeId, name, email, department, designation, role, status }))} /><Table headers={['Employee', 'Department', 'Role', 'Status', 'Actions']} rows={employees.map((employee) => [<div key="employee"><p className="font-semibold">{employee.name}</p><p className="text-xs text-slate-500">{employee.employeeId} - {employee.email}</p></div>, <div key="department"><p>{employee.department}</p><p className="text-xs text-slate-500">{employee.designation}</p></div>, employee.role.replace('_', ' '), <Status key="status">{employee.status}</Status>, <div key="actions" className="flex gap-2"><button onClick={() => onEditEmployee(employee)} title="Edit employee" aria-label={`Edit ${employee.name}`} className="neu-button rounded-lg p-2.5 text-primary-600"><Pencil className="h-4 w-4" /></button><button onClick={() => onEmployeeStatus(employee, employee.status === 'inactive' ? 'active' : 'inactive')} title={employee.status === 'inactive' ? 'Reactivate employee' : 'Deactivate employee'} aria-label={`${employee.status === 'inactive' ? 'Reactivate' : 'Deactivate'} ${employee.name}`} className={`neu-button rounded-lg p-2.5 ${employee.status === 'inactive' ? 'text-emerald-600' : 'text-red-600'}`}>{employee.status === 'inactive' ? <UserCheck className="h-4 w-4" /> : <UserX className="h-4 w-4" />}</button></div>])} /></Card>
+    <Card><Toolbar title={`${company.name} employees`} action={company.status === 'active' ? 'Add employee' : undefined} onAction={company.status === 'active' ? onAddEmployee : undefined} exportRows={employees.map(({ employeeId, name, email, department, designation, role, status }) => ({ employeeId, name, email, department, designation, role, status }))} /><Table headers={['Employee', 'Department', 'Role', 'Status', 'Actions']} rows={employees.map((employee) => [<div key="employee"><EmployeeProfileLink employeeId={employee._id} onOpen={() => onEditEmployee(employee)}>{employee.name}</EmployeeProfileLink><p className="text-xs text-slate-500">{employee.employeeId} - {employee.email}</p></div>, <div key="department"><p>{employee.department}</p><p className="text-xs text-slate-500">{employee.designation}</p></div>, employee.role.replace('_', ' '), <Status key="status">{employee.status}</Status>, <div key="actions" className="flex gap-2"><button onClick={() => onEditEmployee(employee)} title="View employee profile" aria-label={`View ${employee.name}`} className="neu-button rounded-lg p-2.5 text-primary-600"><UserCheck className="h-4 w-4" /></button><button onClick={() => onEmployeeStatus(employee, employee.status === 'inactive' ? 'active' : 'inactive')} title={employee.status === 'inactive' ? 'Reactivate employee' : 'Deactivate employee'} aria-label={`${employee.status === 'inactive' ? 'Reactivate' : 'Deactivate'} ${employee.name}`} className={`neu-button rounded-lg p-2.5 ${employee.status === 'inactive' ? 'text-emerald-600' : 'text-red-600'}`}>{employee.status === 'inactive' ? <UserCheck className="h-4 w-4" /> : <UserX className="h-4 w-4" />}</button></div>])} /></Card>
     <Card><Toolbar title="Audit history" /><Table headers={['Date', 'Action', 'Performed by']} rows={auditLogs.map((entry) => [new Date(entry.createdAt).toLocaleString(), entry.action.replaceAll('.', ' '), entry.actorName || 'System'])} /></Card>
   </div>
 }
 
 function Leads({ leads, update }: { leads: Lead[]; update: (lead: Lead, status: string) => void }) { return <Card><Toolbar title="Sales leads" exportRows={leads.map(({ kind, name, email, company, employees, status, createdAt }) => ({ kind, name, email, company, employees, status, createdAt }))} />{leads.length ? <Table headers={['Contact', 'Source', 'Company', 'Received', 'Status', 'Action']} rows={leads.map((lead) => [<div key="contact"><p className="font-semibold">{lead.name}</p><p className="text-xs text-slate-500">{lead.email}</p></div>, lead.kind === 'demo' ? 'Demo request' : 'Contact', lead.company || '-', new Date(lead.createdAt).toLocaleDateString(), <Status key="status">{lead.status}</Status>, <button key="action" onClick={() => update(lead, lead.status === 'new' ? 'contacted' : 'resolved')} className="gradient-button rounded-lg px-3 py-2 text-xs font-semibold">{lead.status === 'new' ? 'Mark contacted' : 'Resolve'}</button>])} /> : <Empty label="No sales leads yet" />}</Card> }
 function PlatformAudit({ auditLogs }: { auditLogs: AuditLog[] }) { return <Card><Toolbar title="Platform audit log" exportRows={auditLogs.map(({ createdAt, actorName, action, companyName, companyCode, employeeName }) => ({ createdAt, actorName, action, companyName, companyCode, employeeName }))} /><Table headers={['Date', 'Tenant', 'Action', 'Performed by', 'Affected user']} rows={auditLogs.map((entry) => [new Date(entry.createdAt).toLocaleString(), <div key="tenant"><p className="font-semibold">{entry.companyName || 'Platform'}</p><p className="text-xs text-slate-500">{entry.companyCode || '-'}</p></div>, entry.action.replaceAll('.', ' '), entry.actorName || 'System', entry.employeeName || '-'])} /></Card> }
-function AttendanceTable({ rows }: { rows: AttendanceRow[] }) {
+function AttendanceTable({ rows, onOpenEmployee }: { rows: AttendanceRow[]; onOpenEmployee: (id: string, tab: EmployeeProfileTab, period?: string) => void }) {
   return <Table headers={['Employee', 'Today status', 'Check in', 'Check out', 'Hours', 'Payable', 'Month LOP', 'Payroll mode']} rows={rows.map((row) => {
     const status = row.attendance?.isLate ? 'late' : row.day?.status || row.attendance?.status || 'not_checked_in'
     return [
-      <div key="employee"><p className="font-semibold">{row.employee.firstName} {row.employee.lastName}</p><p className="text-xs text-slate-500">{row.employee.employeeId}</p></div>,
+      <div key="employee"><EmployeeProfileLink employeeId={row.employee._id} tab="attendance" period={new Date().toISOString().slice(0, 7)} onOpen={onOpenEmployee}>{row.employee.firstName} {row.employee.lastName}</EmployeeProfileLink><p className="text-xs text-slate-500">{row.employee.employeeId}</p></div>,
       <Status key="status">{attendanceStatusLabel(status)}</Status>,
       formatTime(row.attendance?.checkIn?.time),
       formatTime(row.attendance?.checkOut?.time),
@@ -1102,17 +1265,17 @@ function leaveApprovalStage(leave: Leave) {
   }
 }
 
-function Leaves({ leaves, review }: { leaves: Leave[]; review: (id: string, action: 'approve' | 'reject') => void }) {
-  return <Card><Toolbar title="Leave requests" exportRows={leaves.map((leave) => ({ employee: `${leave.employee.firstName} ${leave.employee.lastName}`, type: leave.leaveType, start: leave.startDate, end: leave.endDate, days: leave.days, approvalStage: leaveApprovalStage(leave).stage, pendingApprover: leaveApprovalStage(leave).approver, status: leave.status }))} /><Table headers={['Employee', 'Type', 'Dates', 'Days', 'Approval stage', 'Status', 'Actions']} rows={leaves.map((leave) => { const approval = leaveApprovalStage(leave); return [<div key="employee"><p className="font-semibold">{leave.employee.firstName} {leave.employee.lastName}</p><p className="text-xs text-slate-500">{leave.employee.employeeId}</p></div>, <div key="type"><p className="capitalize">{leave.leaveType}</p>{leave.reason && <p className="max-w-56 truncate text-xs text-slate-500" title={leave.reason}>{leave.reason}</p>}</div>, `${leave.startDate.slice(0, 10)} to ${leave.endDate.slice(0, 10)}`, leave.days, <div key="stage"><p className="whitespace-nowrap font-semibold">{approval.stage}</p>{approval.approver && <p className="text-xs text-slate-500">{approval.approver}</p>}</div>, <Status key="status">{leave.status}</Status>, <div key="actions" className="flex gap-2"><button aria-label="Approve leave" title="Approve" onClick={() => review(leave._id, 'approve')} className="neu-button rounded-lg p-2.5 text-emerald-600"><CheckCircle2 className="h-5 w-5" /></button><button aria-label="Reject leave" title="Reject" onClick={() => review(leave._id, 'reject')} className="neu-button rounded-lg p-2.5 text-red-600"><XCircle className="h-5 w-5" /></button></div>] })} /></Card>
+function Leaves({ leaves, review, onOpenEmployee }: { leaves: Leave[]; review: (id: string, action: 'approve' | 'reject') => void; onOpenEmployee: (id: string, tab: EmployeeProfileTab) => void }) {
+  return <Card><Toolbar title="Leave requests" exportRows={leaves.map((leave) => ({ employee: `${leave.employee.firstName} ${leave.employee.lastName}`, type: leave.leaveType, start: leave.startDate, end: leave.endDate, days: leave.days, approvalStage: leaveApprovalStage(leave).stage, pendingApprover: leaveApprovalStage(leave).approver, status: leave.status }))} /><Table headers={['Employee', 'Type', 'Dates', 'Days', 'Approval stage', 'Status', 'Actions']} rows={leaves.map((leave) => { const approval = leaveApprovalStage(leave); return [<div key="employee"><EmployeeProfileLink employeeId={leave.employee._id} tab="leave" onOpen={onOpenEmployee}>{leave.employee.firstName} {leave.employee.lastName}</EmployeeProfileLink><p className="text-xs text-slate-500">{leave.employee.employeeId}</p></div>, <div key="type"><p className="capitalize">{leave.leaveType}</p>{leave.reason && <p className="max-w-56 truncate text-xs text-slate-500" title={leave.reason}>{leave.reason}</p>}</div>, `${leave.startDate.slice(0, 10)} to ${leave.endDate.slice(0, 10)}`, leave.days, <div key="stage"><p className="whitespace-nowrap font-semibold">{approval.stage}</p>{approval.approver && <p className="text-xs text-slate-500">{approval.approver}</p>}</div>, <Status key="status">{leave.status}</Status>, <div key="actions" className="flex gap-2"><button aria-label="Approve leave" title="Approve" onClick={() => review(leave._id, 'approve')} className="neu-button rounded-lg p-2.5 text-emerald-600"><CheckCircle2 className="h-5 w-5" /></button><button aria-label="Reject leave" title="Reject" onClick={() => review(leave._id, 'reject')} className="neu-button rounded-lg p-2.5 text-red-600"><XCircle className="h-5 w-5" /></button></div>] })} /></Card>
 }
 
-function WfhRequests({ requests, review, onAssign }: { requests: WfhRequest[]; review: (id: string, action: 'approve' | 'reject') => void; onAssign: () => void }) {
-  return <Card><Toolbar title="WFH requests" action="Assign WFH" onAction={onAssign} exportRows={requests.map((request) => ({ employee: `${request.employee.firstName} ${request.employee.lastName}`, start: request.startDate, end: request.endDate, location: request.workFromLocation, reason: request.reason, status: request.status }))} /><Table headers={['Employee', 'Dates', 'Location', 'Reason', 'Status', 'Actions']} rows={requests.map((request) => [<div key="employee"><p className="font-semibold">{request.employee.firstName} {request.employee.lastName}</p><p className="text-xs text-slate-500">{request.employee.employeeId}</p></div>, `${String(request.startDate).slice(0, 10)} to ${String(request.endDate).slice(0, 10)}`, request.workFromLocation || '-', <p key="reason" className="max-w-56 truncate" title={request.reason}>{request.reason}</p>, <Status key="status">{request.status}</Status>, <div key="actions" className="flex gap-2"><button aria-label="Approve WFH" title="Approve" onClick={() => review(request._id, 'approve')} className="neu-button rounded-lg p-2.5 text-emerald-600"><CheckCircle2 className="h-5 w-5" /></button><button aria-label="Reject WFH" title="Reject" onClick={() => review(request._id, 'reject')} className="neu-button rounded-lg p-2.5 text-red-600"><XCircle className="h-5 w-5" /></button></div>])} /></Card>
+function WfhRequests({ requests, review, onAssign, onOpenEmployee }: { requests: WfhRequest[]; review: (id: string, action: 'approve' | 'reject') => void; onAssign: () => void; onOpenEmployee: (id: string, tab: EmployeeProfileTab) => void }) {
+  return <Card><Toolbar title="WFH requests" action="Assign WFH" onAction={onAssign} exportRows={requests.map((request) => ({ employee: `${request.employee.firstName} ${request.employee.lastName}`, start: request.startDate, end: request.endDate, location: request.workFromLocation, reason: request.reason, status: request.status }))} /><Table headers={['Employee', 'Dates', 'Location', 'Reason', 'Status', 'Actions']} rows={requests.map((request) => [<div key="employee"><EmployeeProfileLink employeeId={request.employee._id} tab="leave" onOpen={onOpenEmployee}>{request.employee.firstName} {request.employee.lastName}</EmployeeProfileLink><p className="text-xs text-slate-500">{request.employee.employeeId}</p></div>, `${String(request.startDate).slice(0, 10)} to ${String(request.endDate).slice(0, 10)}`, request.workFromLocation || '-', <p key="reason" className="max-w-56 truncate" title={request.reason}>{request.reason}</p>, <Status key="status">{request.status}</Status>, <div key="actions" className="flex gap-2"><button aria-label="Approve WFH" title="Approve" onClick={() => review(request._id, 'approve')} className="neu-button rounded-lg p-2.5 text-emerald-600"><CheckCircle2 className="h-5 w-5" /></button><button aria-label="Reject WFH" title="Reject" onClick={() => review(request._id, 'reject')} className="neu-button rounded-lg p-2.5 text-red-600"><XCircle className="h-5 w-5" /></button></div>])} /></Card>
 }
 
-function Grievances({ grievances, resolve }: { grievances: Grievance[]; resolve: (id: string) => void }) { return <Card><Toolbar title="Grievances" exportRows={grievances.map(({ ticketNumber, employee, subject, category, priority, status, createdAt }) => ({ ticketNumber, employee: employee ? `${employee.firstName} ${employee.lastName}` : 'Anonymous', subject, category, priority, status, createdAt }))} />{grievances.length ? <Table headers={['Ticket', 'Employee', 'Subject', 'Priority', 'Status', 'Action']} rows={grievances.map((grievance) => [<div key="ticket"><p className="font-semibold">{grievance.ticketNumber}</p><p className="text-xs text-slate-500">{new Date(grievance.createdAt).toLocaleDateString()}</p></div>, grievance.employee ? `${grievance.employee.firstName} ${grievance.employee.lastName}` : 'Anonymous', <div key="subject"><p className="font-semibold">{grievance.subject}</p><p className="text-xs text-slate-500">{grievance.category}</p></div>, grievance.priority, <Status key="status">{grievance.status}</Status>, ['resolved', 'closed'].includes(grievance.status) ? <span key="done" className="text-xs text-slate-500">Complete</span> : <button key="resolve" onClick={() => resolve(grievance._id)} className="gradient-button rounded-lg px-3 py-2 text-xs font-semibold">Resolve</button>])} /> : <Empty label="No grievances require attention" />}</Card> }
+function Grievances({ grievances, resolve, onOpenEmployee }: { grievances: Grievance[]; resolve: (id: string) => void; onOpenEmployee: (id: string, tab: EmployeeProfileTab) => void }) { return <Card><Toolbar title="Grievances" exportRows={grievances.map(({ ticketNumber, employee, subject, category, priority, status, createdAt }) => ({ ticketNumber, employee: employee ? `${employee.firstName} ${employee.lastName}` : 'Anonymous', subject, category, priority, status, createdAt }))} />{grievances.length ? <Table headers={['Ticket', 'Employee', 'Subject', 'Priority', 'Status', 'Action']} rows={grievances.map((grievance) => [<div key="ticket"><p className="font-semibold">{grievance.ticketNumber}</p><p className="text-xs text-slate-500">{new Date(grievance.createdAt).toLocaleDateString()}</p></div>, grievance.employee ? (grievance.employee._id ? <EmployeeProfileLink key="employee" employeeId={grievance.employee._id} onOpen={onOpenEmployee}>{grievance.employee.firstName} {grievance.employee.lastName}</EmployeeProfileLink> : `${grievance.employee.firstName} ${grievance.employee.lastName}`) : 'Anonymous', <div key="subject"><p className="font-semibold">{grievance.subject}</p><p className="text-xs text-slate-500">{grievance.category}</p></div>, grievance.priority, <Status key="status">{grievance.status}</Status>, ['resolved', 'closed'].includes(grievance.status) ? <span key="done" className="text-xs text-slate-500">Complete</span> : <button key="resolve" onClick={() => resolve(grievance._id)} className="gradient-button rounded-lg px-3 py-2 text-xs font-semibold">Resolve</button>])} /> : <Empty label="No grievances require attention" />}</Card> }
 
-function Reimbursements({ token, reimbursements, role, review, markPaid }: { token: string; reimbursements: Reimbursement[]; role: UserRole; review: (id: string, values: Record<string, unknown>) => void; markPaid: (id: string, reference: string, paidAt: string) => void }) {
+function Reimbursements({ token, reimbursements, role, review, markPaid, onOpenEmployee }: { token: string; reimbursements: Reimbursement[]; role: UserRole; review: (id: string, values: Record<string, unknown>) => void; markPaid: (id: string, reference: string, paidAt: string) => void; onOpenEmployee: (id: string, tab: EmployeeProfileTab) => void }) {
   async function downloadReceipt(claim: Reimbursement, attachment: ReimbursementAttachment) {
     if (attachment.kind !== 'protected_file' || !attachment._id) {
       if (attachment.url) window.open(attachment.url, '_blank', 'noopener,noreferrer')
@@ -1141,7 +1304,7 @@ function Reimbursements({ token, reimbursements, role, review, markPaid }: { tok
       <div className="mb-4 rounded-lg border border-slate-200 bg-white/40 p-3 text-sm text-slate-600">Approved payroll claims are added once as paid-after-gross reimbursements. Separate payments remain outside salary and require a payment reference.</div>
       <Table headers={['Claim', 'Employee', 'Expense', 'Claimed', 'Approved', 'Status', 'Payment', 'Action']} rows={reimbursements.map((item) => [
         <div key="claim"><p className="font-semibold">{item.claimNumber}</p><p className="text-xs text-slate-500">{formatDate(item.createdAt)}</p></div>,
-        <div key="employee"><p className="font-semibold">{item.employee.firstName} {item.employee.lastName}</p><p className="text-xs text-slate-500">{item.employee.employeeId}</p></div>,
+        <div key="employee"><EmployeeProfileLink employeeId={item.employee._id} tab="payslips" onOpen={onOpenEmployee}>{item.employee.firstName} {item.employee.lastName}</EmployeeProfileLink><p className="text-xs text-slate-500">{item.employee.employeeId}</p></div>,
         <div key="expense" className="max-w-64 whitespace-normal"><p className="font-semibold capitalize">{item.category.replaceAll('_', ' ')}</p><p className="text-xs text-slate-500">{formatDate(item.expenseDate)}{item.merchant ? ` - ${item.merchant}` : ''}</p><p className="line-clamp-2 text-xs text-slate-500" title={item.description}>{item.description}</p>{item.attachments?.length ? <div className="mt-1 flex flex-wrap gap-2">{item.attachments.map((attachment, index) => <button key={attachment._id || `${attachment.name}-${index}`} type="button" onClick={() => void downloadReceipt(item, attachment)} className="text-xs font-semibold text-primary-600">View {attachment.name || `receipt ${index + 1}`}</button>)}</div> : null}</div>,
         formatCurrency(item.amount),
         item.approvedAmount ? formatCurrency(item.approvedAmount) : '-',
@@ -1168,8 +1331,8 @@ function ReimbursementAction({ item, role, review, markPaid }: { item: Reimburse
   return <span className="text-xs text-slate-500">No action</span>
 }
 
-function DesktopView({ team }: { team: DesktopMember[] }) {
-  return <Card><Toolbar title="Desktop activity" exportRows={team.map((item) => ({ employeeId: item.employee.employeeId, employee: `${item.employee.firstName} ${item.employee.lastName}`, activeMinutes: Math.round((item.activity?.summary?.totalActiveSeconds || 0) / 60), idleMinutes: Math.round((item.activity?.summary?.totalIdleSeconds || 0) / 60), snapshots: item.activity?.summary?.snapshots || 0, deviceStatus: item.states[0]?.status || 'offline' }))} /><Table headers={['Employee', 'Active', 'Idle', 'Snapshots', 'Device']} rows={team.map((item) => [<div key="employee"><p className="font-semibold">{item.employee.firstName} {item.employee.lastName}</p><p className="text-xs text-slate-500">{item.employee.employeeId}</p></div>, `${Math.round((item.activity?.summary?.totalActiveSeconds || 0) / 60)} min`, `${Math.round((item.activity?.summary?.totalIdleSeconds || 0) / 60)} min`, item.activity?.summary?.snapshots || 0, <Status key="status">{item.states[0]?.status || 'offline'}</Status>])} /></Card>
+function DesktopView({ team, onOpenEmployee }: { team: DesktopMember[]; onOpenEmployee: (id: string, tab: EmployeeProfileTab) => void }) {
+  return <Card><Toolbar title="Desktop activity" exportRows={team.map((item) => ({ employeeId: item.employee.employeeId, employee: `${item.employee.firstName} ${item.employee.lastName}`, activeMinutes: Math.round((item.activity?.summary?.totalActiveSeconds || 0) / 60), idleMinutes: Math.round((item.activity?.summary?.totalIdleSeconds || 0) / 60), snapshots: item.activity?.summary?.snapshots || 0, deviceStatus: item.states[0]?.status || 'offline' }))} /><Table headers={['Employee', 'Active', 'Idle', 'Snapshots', 'Device']} rows={team.map((item) => [<div key="employee"><EmployeeProfileLink employeeId={item.employee._id} onOpen={onOpenEmployee}>{item.employee.firstName} {item.employee.lastName}</EmployeeProfileLink><p className="text-xs text-slate-500">{item.employee.employeeId}</p></div>, `${Math.round((item.activity?.summary?.totalActiveSeconds || 0) / 60)} min`, `${Math.round((item.activity?.summary?.totalIdleSeconds || 0) / 60)} min`, item.activity?.summary?.snapshots || 0, <Status key="status">{item.states[0]?.status || 'offline'}</Status>])} /></Card>
 }
 
 function Areas({ areas, workLocations, canManage, onAdd, onEdit, onDelete, onOpenLocations }: { areas: Area[]; workLocations: WorkLocation[]; canManage: boolean; onAdd: () => void; onEdit: (area: Area) => void; onDelete: (area: Area) => void; onOpenLocations: () => void }) {
@@ -1341,12 +1504,21 @@ function PlatformSubscriptions({ plans, subscriptions, summary, invoices, paymen
 function SettingsView({ userName, apiRoot, company, token, canEditCompany, onSaved, onCompanySaved, onOpenPage }: { userName: string; apiRoot: string; company?: Company; token: string; canEditCompany: boolean; onSaved: () => Promise<void>; onCompanySaved: (message: string) => Promise<void>; onOpenPage: (page: string) => void }) {
   const [settings, setSettings] = useState<WorkspaceSettingsState>(() => workspaceSettingsFromCompany(company))
   const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
   const [error, setError] = useState('')
   const policy = settings.attendancePolicy
 
-  useEffect(() => { setSettings(workspaceSettingsFromCompany(company)) }, [company])
+  // Only reset the form from the server while there is nothing unsaved, otherwise a
+  // background refresh silently discarded whatever was being edited.
+  useEffect(() => { if (!dirty) setSettings(workspaceSettingsFromCompany(company)) }, [company, dirty])
+
+  function update(patch: Partial<WorkspaceSettingsState>) {
+    setDirty(true)
+    setSettings((current) => ({ ...current, ...patch }))
+  }
 
   function updatePolicy<Key extends keyof AttendancePolicy>(key: Key, value: AttendancePolicy[Key]) {
+    setDirty(true)
     setSettings((current) => ({ ...current, attendancePolicy: { ...current.attendancePolicy, [key]: value } }))
   }
 
@@ -1354,13 +1526,31 @@ function SettingsView({ userName, apiRoot, company, token, canEditCompany, onSav
     setSaving(true)
     setError('')
     try {
-      await api('/companies/settings', { method: 'PATCH', body: JSON.stringify(settings) }, token)
+      // Office hours and timezone are owned by Company details, so they are not sent
+      // from here. Two writers for the same field is what made saving look broken.
+      const { officeStart: _start, officeEnd: _end, timezone: _zone, ...payload } = settings
+      await api('/companies/settings', { method: 'PATCH', body: JSON.stringify(payload) }, token)
+      setDirty(false)
       await onSaved()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not save settings')
     } finally {
       setSaving(false)
     }
+  }
+
+  /** Repeated in each card that writes these settings, so a save is always in reach. */
+  function SaveBar() {
+    return (
+      <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line pt-4">
+        <button disabled={saving || !dirty} onClick={() => void save()} className="gradient-button rounded-lg px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60">
+          {saving ? 'Saving...' : 'Save settings'}
+        </button>
+        <span className={`text-xs font-semibold ${dirty ? 'text-warning' : 'text-ink-soft'}`}>
+          {dirty ? 'Unsaved changes on this page' : 'All changes saved'}
+        </span>
+      </div>
+    )
   }
 
   return <div className="space-y-5">
@@ -1375,19 +1565,23 @@ function SettingsView({ userName, apiRoot, company, token, canEditCompany, onSav
         <p className="mt-1 break-all text-xs text-ink-soft">API: {apiRoot}</p>
       </div>
       {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {/* Office hours and timezone are edited in Company details above. They used to
+          appear here as well, writing through a different endpoint, so whichever card
+          was saved last silently overwrote the other and edits looked lost. */}
+      <p className="mb-4 rounded-lg border border-line bg-surface-subtle px-3.5 py-2.5 text-sm text-ink-soft">
+        Office hours <strong className="text-ink">{settings.officeStart} - {settings.officeEnd}</strong> and timezone <strong className="text-ink">{settings.timezone}</strong> are set in <strong className="text-ink">Company details</strong> at the top of this page.
+      </p>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <label className="text-sm font-semibold">Office start<input type="time" value={settings.officeStart} onChange={(event) => setSettings((current) => ({ ...current, officeStart: event.target.value }))} className={`${fieldClass} mt-1`} /></label>
-        <label className="text-sm font-semibold">Office end<input type="time" value={settings.officeEnd} onChange={(event) => setSettings((current) => ({ ...current, officeEnd: event.target.value }))} className={`${fieldClass} mt-1`} /></label>
-        <label className="text-sm font-semibold">Timezone<input value={settings.timezone} onChange={(event) => setSettings((current) => ({ ...current, timezone: event.target.value }))} className={`${fieldClass} mt-1`} /></label>
-        <label className="text-sm font-semibold">Late grace minutes<input type="number" min="0" max="180" value={policy.lateGraceMinutes} onChange={(event) => updatePolicy('lateGraceMinutes', Number(event.target.value))} className={`${fieldClass} mt-1`} /></label>
+        <label className="text-sm font-semibold">Late grace minutes<input type="number" min="0" max="180" value={policy.lateGraceMinutes} onChange={(event) => updatePolicy('lateGraceMinutes', Number(event.target.value))} className={`${fieldClass} mt-1`} /><span className="mt-1 block text-xs font-normal leading-5 text-ink-soft">Minutes after office start before a check-in counts as late.</span></label>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <Toggle label="GPS tracking" checked={settings.gpsTracking} change={(value) => setSettings((current) => ({ ...current, gpsTracking: value }))} />
-        <Toggle label="Auto check-in" checked={settings.autoCheckIn} change={(value) => setSettings((current) => ({ ...current, autoCheckIn: value }))} />
-        <Toggle label="Leave approval" checked={settings.leaveApproval} change={(value) => setSettings((current) => ({ ...current, leaveApproval: value }))} />
-        <Toggle label="Desktop monitoring" checked={settings.desktopMonitoring} change={(value) => setSettings((current) => ({ ...current, desktopMonitoring: value }))} />
-        <Toggle label="Photo attendance" checked={settings.requirePhotoAttendance} change={(value) => setSettings((current) => ({ ...current, requirePhotoAttendance: value }))} />
+        <Toggle label="GPS tracking" checked={settings.gpsTracking} change={(value) => update({ gpsTracking: value })} />
+        <Toggle label="Auto check-in" checked={settings.autoCheckIn} change={(value) => update({ autoCheckIn: value })} />
+        <Toggle label="Leave approval" checked={settings.leaveApproval} change={(value) => update({ leaveApproval: value })} />
+        <Toggle label="Desktop monitoring" checked={settings.desktopMonitoring} change={(value) => update({ desktopMonitoring: value })} />
+        <Toggle label="Photo attendance" checked={settings.requirePhotoAttendance} change={(value) => update({ requirePhotoAttendance: value })} />
       </div>
+      <SaveBar />
     </Card>
 
     {/* The work week decides who is expected in, so it comes before the rules
@@ -1411,6 +1605,7 @@ function SettingsView({ userName, apiRoot, company, token, canEditCompany, onSav
         <Toggle label="Deduct half day" checked={policy.deductHalfDay} change={(value) => updatePolicy('deductHalfDay', value)} />
         <Toggle label="Paid holidays" checked={policy.holidaysPaid} change={(value) => updatePolicy('holidaysPaid', value)} />
       </div>
+      <SaveBar />
     </Card>
 
     <Card>
@@ -1421,17 +1616,17 @@ function SettingsView({ userName, apiRoot, company, token, canEditCompany, onSav
         <Toggle label="WFH requires check-in" checked={policy.wfhRequiresCheckIn} change={(value) => updatePolicy('wfhRequiresCheckIn', value)} />
         <Toggle label="Count WFH as present" checked={policy.countApprovedWfhAsPresent} change={(value) => updatePolicy('countApprovedWfhAsPresent', value)} />
       </div>
-      <button disabled={saving} onClick={() => void save()} className="gradient-button mt-5 rounded-lg px-5 py-3 font-semibold disabled:opacity-60">{saving ? 'Saving...' : 'Save settings'}</button>
+      <SaveBar />
     </Card>
   </div>
 }
 
-function Table({ headers, rows }: { headers: string[]; rows: ReactNode[][] }) {
+function Table({ headers, rows, paginateRows = true }: { headers: string[]; rows: ReactNode[][]; paginateRows?: boolean }) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
-  const firstRecord = (page - 1) * pageSize
-  const visibleRows = rows.slice(firstRecord, firstRecord + pageSize)
+  const firstRecord = paginateRows ? (page - 1) * pageSize : 0
+  const visibleRows = paginateRows ? rows.slice(firstRecord, firstRecord + pageSize) : rows
 
   useEffect(() => { setPage((current) => Math.min(current, totalPages)) }, [totalPages])
 
@@ -1443,21 +1638,16 @@ function Table({ headers, rows }: { headers: string[]; rows: ReactNode[][] }) {
         <tbody>{visibleRows.map((row, rowIndex) => <tr key={firstRecord + rowIndex} className="border-b border-line last:border-0 hover:bg-neu-bg/70">{row.map((cell, index) => <td key={index} className={`whitespace-nowrap px-3 py-3 align-middle first:pl-4 last:pr-4 sm:first:pl-5 sm:last:pr-5 ${index === 0 ? 'sticky left-0 z-[1] bg-white' : ''}`}>{cell}</td>)}</tr>)}</tbody>
       </table>
     </div>
-    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-ink-soft">
+    {paginateRows && <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-ink-soft">
       <div className="flex items-center gap-2"><span>Rows</span><select aria-label="Rows per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1) }} className="neu-input rounded-md px-2 py-1 text-xs"><option value={5}>5</option><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option></select><span className="tabular-nums">{firstRecord + 1}-{Math.min(firstRecord + pageSize, rows.length)} of {rows.length}</span></div>
       <div className="flex items-center gap-1.5"><button aria-label="Previous page" title="Previous page" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="neu-button rounded-md p-1.5 disabled:cursor-not-allowed"><ChevronLeft className="h-4 w-4" /></button><span className="min-w-24 text-center font-semibold tabular-nums text-ink">Page {page} of {totalPages}</span><button aria-label="Next page" title="Next page" disabled={page === totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="neu-button rounded-md p-1.5 disabled:cursor-not-allowed"><ChevronRight className="h-4 w-4" /></button></div>
-    </div>
+    </div>}
   </div>
 }
 function Empty({ label }: { label: string }) { return <div className="rounded-lg border border-dashed border-line-strong bg-surface-subtle p-10 text-center text-sm font-medium text-ink-soft">{label}</div> }
 function Metric({ label, value }: { label: string; value: string | number }) { return <div className="neu-card rounded-lg px-4 py-3.5"><p className="text-[10px] font-bold uppercase tracking-[0.06em] text-ink-muted">{label}</p><p className="mt-1.5 text-2xl font-bold tracking-tight tabular-nums">{value}</p></div> }
 function Toggle({ label, checked, change }: { label: string; checked: boolean; change: (value: boolean) => void }) { return <label className="neu-inset flex cursor-pointer items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm font-semibold transition-colors hover:border-line-input"><span>{label}</span><input type="checkbox" checked={checked} onChange={(event) => change(event.target.checked)} className="h-4 w-4 accent-primary-600" /></label> }
 
-/** `size` controls desktop width. Long data-entry forms use `wide`. */
-function Modal({ title, close, children, size = 'default' }: { title: string; close: () => void; children: ReactNode; size?: 'default' | 'wide' }) {
-  const width = size === 'wide' ? 'max-w-5xl' : 'max-w-lg'
-  return <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 grid place-items-start overflow-y-auto bg-ink/40 p-3 backdrop-blur-[1px] sm:place-items-center sm:p-6"><div className={`animate-in my-auto w-full ${width} rounded-xl border border-line bg-white shadow-overlay`}><div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-t-xl border-b border-line bg-surface-subtle px-4 py-3.5 sm:px-5"><h2 className="text-base font-bold tracking-tight">{title}</h2><button aria-label="Close dialog" onClick={close} className="neu-button shrink-0 rounded-md p-1.5"><X className="h-4 w-4" /></button></div><div className="p-4 sm:p-6">{children}</div></div></div>
-}
 const fieldClass = 'neu-input w-full px-3 py-2.5'
 
 const employeeSalaryFieldNames = [
@@ -1615,56 +1805,6 @@ function EmployeeSalaryModal({ token, userRole, employees, companyId, department
   </form></Modal>
 }
 
-function EmployeeSalaryEditModal({ token, userRole, employees, employee, departments, designations, workLocations, close, done }: {
-  token: string; userRole: UserRole; employees: Employee[]; employee: Employee
-  close: () => void; done: (message: string) => Promise<void>
-} & OrgPickerProps) {
-  const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
-  const form = useEmployeeFormState(employee, workLocations)
-  const roleOptions = userRole === 'super_admin' ? ['employee', 'manager', 'hr', 'admin', 'super_admin'] : userRole === 'admin' ? ['employee', 'manager', 'hr', 'admin'] : ['employee', 'manager', 'hr']
-  const managers = employees.filter((item) => item._id !== employee._id && item.companyId === employee.companyId && ['manager', 'hr', 'admin'].includes(item.role) && item.status !== 'inactive')
-  const managerOptions: Option[] = managers.map((manager) => ({ value: manager._id, label: manager.name, hint: manager.employeeId + ' - ' + manager.role.replace('_', ' ') }))
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (saving) return
-    setSaving(true); setError('')
-    try {
-      const data = new FormData(event.currentTarget)
-      const { values, salary } = employeeDetailsPayload(data, employee.salary)
-      if (!values.passcode) delete values.passcode
-      if (!values.lastWorkingDate) values.lastWorkingDate = ''
-      const payload = {
-        ...values,
-        salary,
-        workLocationId: form.workLocationId || null,
-        departmentId: form.departmentId || null,
-        designationId: form.designationId || null,
-      }
-      const result = await api<{ employee: Employee }>('/employees/' + employee._id, { method: 'PATCH', body: JSON.stringify(payload) }, token)
-      await done(result.employee.name + ' updated successfully.')
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not update employee')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return <Modal title={'Edit ' + employee.name} close={close} size="wide"><form onSubmit={submit} className="space-y-6">
-    {error && <p role="alert" className="rounded-md border border-red-200 bg-danger-soft px-3 py-2 text-sm font-medium text-danger">{error}</p>}
-    <p className="rounded-lg border border-line bg-surface-subtle px-3.5 py-2.5 text-xs leading-5 text-ink-soft">
-      Every field is shown, including any left blank when this employee was added. Fill them in whenever you have the detail.
-    </p>
-    <EmployeeFormFields mode="edit" employee={employee} roleOptions={roleOptions} managerOptions={managerOptions} departments={departments} designations={designations} workLocations={workLocations} {...form} />
-    <FormSection title="Sign-in">
-      <Labelled label="New passcode" hint="Leave blank to keep the current one. Use Reset password on the employee row to issue a new sign-in password."><input name="passcode" minLength={4} className={fieldClass} /></Labelled>
-    </FormSection>
-    <EmployeeSalaryFields salary={employee.salary} defaultDate={String(employee.dateOfJoining || new Date().toISOString()).slice(0, 10)} />
-    <button disabled={saving} className="gradient-button w-full rounded-lg py-3 font-semibold">{saving ? 'Saving...' : 'Save employee'}</button>
-  </form></Modal>
-}
-
 function CompanyModal({ close, done }: { close: () => void; done: (message: string) => Promise<void> }) { const [error, setError] = useState(''); const [saving, setSaving] = useState(false); async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setSaving(true); setError(''); const values = Object.fromEntries(new FormData(event.currentTarget)); try { const registration = await api<{ company: Company; verificationCode: string }>('/companies/register', { method: 'POST', body: JSON.stringify(values) }); await api('/companies/verify', { method: 'POST', body: JSON.stringify({ companyCode: registration.company.code, verificationCode: registration.verificationCode }) }); await done(`${registration.company.name} created and activated. Admin login: ${values.adminEmail}`) } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not create company') } finally { setSaving(false) } } return <Modal title="Add company" close={close}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">{error && <p className="sm:col-span-2 text-sm text-red-600">{error}</p>}<label className="text-sm font-semibold sm:col-span-2">Company name<input name="companyName" required className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">Company code<input name="companyCode" required className={`${fieldClass} mt-1 uppercase`} /></label><label className="text-sm font-semibold">Admin email<input name="adminEmail" type="email" required className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">Admin first name<input name="adminFirstName" required className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">Admin last name<input name="adminLastName" required className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold sm:col-span-2">Admin password<input name="adminPassword" type="password" minLength={8} required className={`${fieldClass} mt-1`} /></label><button disabled={saving} className="gradient-button rounded-lg py-3 font-semibold sm:col-span-2">{saving ? 'Creating...' : 'Create and activate company'}</button></form></Modal> }
 
 function PaymentModal({ token, invoice, close, done }: { token: string; invoice: BillingInvoice; close: () => void; done: (message: string) => Promise<void> }) {
@@ -1743,26 +1883,6 @@ function EmployeeModal({ token, userRole, employees, companyId, close, done }: {
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not create employee') } finally { setSaving(false) }
   }
   return <Modal title="Add employee" close={close}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">{error && <p className="sm:col-span-2 text-sm text-red-600">{error}</p>}<label className="text-sm font-semibold">Employee ID<input name="employeeId" placeholder="EMP002" required className={`${fieldClass} mt-1 uppercase`} /></label><label className="text-sm font-semibold">Mobile passcode<input name="passcode" minLength={4} defaultValue="1234" required className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">First name<input name="firstName" required className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">Last name<input name="lastName" className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold sm:col-span-2">Email<input name="email" type="email" required className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">Phone<input name="phone" type="tel" className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">Joining date<input name="dateOfJoining" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">Role<select name="role" defaultValue="employee" className={`${fieldClass} mt-1 capitalize`}>{roleOptions.map((role) => <option key={role} value={role}>{role.replace('_', ' ')}</option>)}</select></label><div className="text-sm font-semibold"><label htmlFor="employee-modal-manager">Reporting manager</label><div className="mt-1"><SearchableSelect id="employee-modal-manager" name="managerId" options={managerOptions} value={managerId} onChange={setManagerId} placeholder="Search managers" allowEmpty emptyLabel="No reporting manager" /></div></div><label className="text-sm font-semibold">Department<input name="department" defaultValue="Operations" className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">Designation<input name="designation" defaultValue="Employee" className={`${fieldClass} mt-1`} /></label><div className="space-y-3 rounded-lg border border-slate-200 p-3 sm:col-span-2"><label className="flex items-center gap-2 text-sm font-semibold"><input name="requiresPasswordChange" type="checkbox" defaultChecked className="h-4 w-4 accent-orange-600" />Require passcode change after first login</label>{userRole !== 'super_admin' && <label className="flex items-center gap-2 text-sm font-semibold"><input name="openPayroll" type="checkbox" defaultChecked className="h-4 w-4 accent-orange-600" />Open salary and payroll setup after creation</label>}</div><button disabled={saving} className="gradient-button rounded-lg py-3 font-semibold sm:col-span-2">{saving ? 'Creating...' : 'Create employee'}</button></form></Modal>
-}
-
-function EmployeeEditModal({ token, userRole, employees, employee, close, done }: { token: string; userRole: UserRole; employees: Employee[]; employee: Employee; close: () => void; done: (message: string) => Promise<void> }) {
-  const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
-  const roles = userRole === 'super_admin' ? ['employee', 'manager', 'hr', 'admin', 'super_admin'] : userRole === 'admin' ? ['employee', 'manager', 'hr', 'admin'] : ['employee', 'manager', 'hr']
-  const managers = employees.filter((item) => item._id !== employee._id && item.companyId === employee.companyId && ['manager', 'hr', 'admin'].includes(item.role) && item.status !== 'inactive')
-  const managerOptions: Option[] = managers.map((manager) => ({ value: manager._id, label: manager.name, hint: `${manager.employeeId} - ${manager.role.replace('_', ' ')}` }))
-  const [managerId, setManagerId] = useState(employee.managerId || '')
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setSaving(true); setError('')
-    const values = Object.fromEntries(new FormData(event.currentTarget))
-    if (!values.passcode) delete values.passcode
-    if (!values.lastWorkingDate) values.lastWorkingDate = ''
-    try {
-      const result = await api<{ employee: Employee }>(`/employees/${employee._id}`, { method: 'PATCH', body: JSON.stringify(values) }, token)
-      await done(`${result.employee.name} updated successfully.`)
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not update employee') } finally { setSaving(false) }
-  }
-  return <Modal title={`Edit ${employee.name}`} close={close}><form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">{error && <p className="sm:col-span-2 text-sm text-red-600">{error}</p>}<label className="text-sm font-semibold">Employee ID<input name="employeeId" defaultValue={employee.employeeId} required className={`${fieldClass} mt-1 uppercase`} /></label><label className="text-sm font-semibold">Status<select name="status" defaultValue={employee.status} disabled={userRole === 'hr'} className={`${fieldClass} mt-1 disabled:opacity-60`}><option value="active">Active</option><option value="inactive">Inactive</option></select></label><label className="text-sm font-semibold">First name<input name="firstName" defaultValue={employee.firstName || ''} required className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">Last name<input name="lastName" defaultValue={employee.lastName || ''} className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold sm:col-span-2">Email<input name="email" type="email" defaultValue={employee.email} required className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">Phone<input name="phone" type="tel" defaultValue={employee.phone || ''} className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">Role<select name="role" defaultValue={employee.role} className={`${fieldClass} mt-1 capitalize`}>{roles.map((role) => <option key={role} value={role}>{role.replace('_', ' ')}</option>)}</select></label><label className="text-sm font-semibold">Department<input name="department" defaultValue={employee.department} className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">Designation<input name="designation" defaultValue={employee.designation} className={`${fieldClass} mt-1`} /></label><div className="text-sm font-semibold"><label htmlFor="employee-edit-manager">Reporting manager</label><div className="mt-1"><SearchableSelect id="employee-edit-manager" name="managerId" options={managerOptions} value={managerId} onChange={setManagerId} placeholder="Search managers" allowEmpty emptyLabel="No reporting manager" /></div></div><label className="text-sm font-semibold">Joining date<input name="dateOfJoining" type="date" defaultValue={String(employee.dateOfJoining || '').slice(0, 10)} className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold">Last working date<input name="lastWorkingDate" type="date" defaultValue={String(employee.lastWorkingDate || '').slice(0, 10)} className={`${fieldClass} mt-1`} /></label><label className="text-sm font-semibold sm:col-span-2">New passcode <span className="font-normal text-slate-500">(leave blank to keep current)</span><input name="passcode" minLength={4} className={`${fieldClass} mt-1`} /></label><button disabled={saving} className="gradient-button rounded-lg py-3 font-semibold sm:col-span-2">{saving ? 'Saving...' : 'Save employee details'}</button></form></Modal>
 }
 
 /** Creates a geofence, or edits an existing one when `area` is supplied. */

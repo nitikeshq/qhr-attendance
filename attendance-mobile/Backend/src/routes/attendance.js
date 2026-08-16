@@ -23,6 +23,7 @@ const {
   workWeekFor,
 } = require('../utils/attendancePolicy');
 const { describePeriod, describeWeekday, normalizeWorkWeek } = require('../utils/workWeek');
+const { leaveUsageForYear, monthSummary, yearSummary } = require('../utils/employeeSummary');
 
 const router = express.Router();
 
@@ -436,6 +437,49 @@ router.get('/work-week/preview', roleRequired('hr', 'admin'), (req, res) => {
   });
 });
 
+/**
+ * One employee's month, day by day.
+ *
+ * `/my` only ever served the signed-in user, so HR had no way to open a single
+ * person's attendance history. Manager scoping is reused, so a manager sees their
+ * own reports and nobody else.
+ */
+router.get('/employee/:employeeId', roleRequired('manager', 'hr', 'admin'), async (req, res, next) => {
+  try {
+    const data = await req.app.locals.store.read();
+    const employee = visibleEmployees(data, req).find((item) => item._id === req.params.employeeId)
+      || (req.user.role !== 'manager'
+        ? data.employees.find((item) => item._id === req.params.employeeId && item.companyId === req.company._id)
+        : null);
+    if (!employee) return fail(res, 404, 'Employee not found');
+
+    const period = PERIOD_PATTERN.test(String(req.query.period || ''))
+      ? String(req.query.period)
+      : dateKey().slice(0, 7);
+    const summary = buildAttendanceSummary(data, req.company, employee, period, req.company.payrollSettings || {});
+    const records = (data.attendances || []).filter((item) => (
+      item.employeeId === employee._id && String(item.dateKey || item.date).slice(0, 7) === period
+    ));
+
+    return ok(res, {
+      employee: {
+        _id: employee._id,
+        employeeId: employee.employeeId,
+        name: employee.name,
+        department: employee.department || '',
+        designation: employee.designation || '',
+      },
+      period,
+      summary: stripDailySummary(summary),
+      // The day list is the point of this endpoint, so it is not stripped here.
+      days: summary.days,
+      records,
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 /** Saves the weekly-off pattern. Admin only: it changes what everyone is paid. */
 router.patch('/work-week', roleRequired('admin'), async (req, res, next) => {
   try {
@@ -501,6 +545,43 @@ router.get('/summary', async (req, res, next) => {
   }
 });
 
+/**
+ * My month, with the same counters payroll uses.
+ *
+ * Employees previously had no way to see their own absences or loss of pay: the
+ * self-service summary hardcoded `absentDays: 0`. Anything that reduces pay should
+ * be visible to the person it is deducted from, before payday.
+ */
+router.get('/my-summary', async (req, res, next) => {
+  try {
+    const data = await req.app.locals.store.read();
+    const period = PERIOD_PATTERN.test(String(req.query.period || ''))
+      ? String(req.query.period)
+      : dateKey().slice(0, 7);
+    const employee = findEmployee(data, req.user._id, req.company._id) || req.user;
+    return ok(res, { summary: monthSummary(data, req.company, employee, period) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/** My year: twelve months of the same counters, plus leave usage per type. */
+router.get('/my-year', async (req, res, next) => {
+  try {
+    const data = await req.app.locals.store.read();
+    const year = Number(req.query.year) || Number(dateKey().slice(0, 4));
+    const employee = findEmployee(data, req.user._id, req.company._id) || req.user;
+    const leaveTypes = normalizeLeaveTypes(req.company.leaveTypes || []);
+    return ok(res, {
+      ...yearSummary(data, req.company, employee, year),
+      leaveUsage: leaveUsageForYear(data, req.company, employee, year, leaveTypes),
+    });
+  } catch (error) {
+    if (/Year must be/.test(error.message)) return fail(res, 400, error.message);
+    return next(error);
+  }
+});
+
 router.post('/check-in', async (req, res, next) => {
   try {
     const body = req.body || {};
@@ -562,6 +643,179 @@ router.post('/check-in', async (req, res, next) => {
     return created(res, {
       attendance: result,
       message: result.checkIn ? 'Checked in successfully' : 'Already checked in',
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * Attendance raised by a geofence event rather than by a person.
+ *
+ * The device reports "entered" or "exited" an approved area; the server decides
+ * whether that becomes a punch. Doing the deciding here matters, because a phone
+ * resting on a geofence boundary emits enter/exit repeatedly, and a client-side
+ * implementation would happily write a punch for each one.
+ *
+ * Guarantees:
+ *  - the location must genuinely be inside an active area, never merely nearby
+ *  - entering twice in a day cannot overwrite the first check-in
+ *  - a check-out only moves forward in time, and never lands before check-in
+ *  - a re-entry after leaving clears the check-out rather than stranding the day
+ *  - every automatic punch is labelled, so it is auditable against a manual one
+ */
+router.post('/auto', async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const event = String(body.event || '').toLowerCase();
+    if (!['enter', 'exit'].includes(event)) {
+      return fail(res, 400, 'event must be either enter or exit');
+    }
+    if (!hasCoordinates(body.location)) {
+      return fail(res, 400, 'A location is required for an automatic punch');
+    }
+
+    const match = resolveNearestArea(req.company, body.location);
+    if (!match) return fail(res, 400, 'No active attendance area is configured for this company');
+    if (!match.inside) {
+      return fail(res, 409, `Outside every approved area by ${match.distanceMeters} m, so no attendance was recorded`);
+    }
+
+    const stamp = areaStamp(match);
+    const occurredAt = body.occurredAt && !Number.isNaN(Date.parse(body.occurredAt))
+      ? new Date(body.occurredAt).toISOString()
+      : nowIso();
+    const today = dateKey(occurredAt);
+
+    const result = await req.app.locals.store.update((data) => {
+      const employee = findEmployee(data, req.user._id, req.company._id) || req.user;
+      let attendance = data.attendances.find((item) => item.employeeId === req.user._id && item.dateKey === today);
+
+      if (event === 'enter') {
+        const late = lateInfo(req.company, occurredAt);
+        if (!attendance) {
+          attendance = {
+            _id: newId('att'),
+            companyId: req.company._id,
+            employeeId: req.user._id,
+            date: startOfDayIso(today),
+            dateKey: today,
+            checkIn: null,
+            checkOut: null,
+            workDuration: 0,
+            status: 'present',
+            workMode: 'office',
+            isLate: late.isLate,
+            lateByMinutes: late.lateByMinutes,
+            notes: null,
+            createdAt: occurredAt,
+            updatedAt: occurredAt,
+          };
+          data.attendances.push(attendance);
+        }
+
+        if (attendance.checkIn) {
+          // Already in for the day. Re-entering after a break reopens the day so
+          // the final exit sets the real check-out, rather than being ignored.
+          if (attendance.checkOut) {
+            attendance.checkOut = null;
+            attendance.workDuration = 0;
+            attendance.updatedAt = occurredAt;
+            return { attendance, outcome: 'reopened' };
+          }
+          return { attendance, outcome: 'already_checked_in' };
+        }
+
+        attendance.checkIn = {
+          time: occurredAt,
+          location: body.location,
+          method: 'geofence_auto',
+          source: 'geofence',
+          regionId: body.regionId || stamp.areaId,
+          areaId: stamp.areaId,
+          areaName: stamp.areaName,
+          distanceMeters: stamp.distanceMeters,
+        };
+        attendance.areaId = stamp.areaId;
+        attendance.areaName = stamp.areaName;
+        attendance.workLocationId = employee?.workLocationId || attendance.workLocationId || null;
+        attendance.status = attendance.status === 'work_from_home' ? 'work_from_home' : 'present';
+        attendance.isLate = late.isLate;
+        attendance.lateByMinutes = late.lateByMinutes;
+        attendance.updatedAt = occurredAt;
+        return { attendance, outcome: 'checked_in' };
+      }
+
+      // Exit
+      if (!attendance || !attendance.checkIn) return { outcome: 'not_checked_in' };
+      if (occurredAt <= attendance.checkIn.time) return { attendance, outcome: 'ignored_before_check_in' };
+      if (attendance.checkOut && occurredAt <= attendance.checkOut.time) {
+        return { attendance, outcome: 'ignored_older_exit' };
+      }
+
+      attendance.checkOut = {
+        time: occurredAt,
+        location: body.location,
+        method: 'geofence_auto',
+        source: 'geofence',
+        regionId: body.regionId || stamp.areaId,
+        areaId: stamp.areaId,
+        areaName: stamp.areaName,
+        distanceMeters: stamp.distanceMeters,
+      };
+      attendance.workDuration = calculateWorkDuration(attendance.checkIn, attendance.checkOut);
+      attendance.updatedAt = occurredAt;
+      return { attendance, outcome: 'checked_out' };
+    });
+
+    if (result.outcome === 'not_checked_in') {
+      return fail(res, 409, 'No check-in exists for today, so there is nothing to close');
+    }
+
+    const messages = {
+      checked_in: 'Checked in automatically on arrival',
+      checked_out: 'Checked out automatically on leaving',
+      reopened: 'Welcome back: the day was reopened',
+      already_checked_in: 'Already checked in today',
+      ignored_older_exit: 'A later check-out is already recorded',
+      ignored_before_check_in: 'Ignored: the exit predates the check-in',
+    };
+    return ok(res, {
+      attendance: result.attendance,
+      outcome: result.outcome,
+      // Repeat boundary events are answered 200 with an outcome rather than an
+      // error, so a device does not treat normal jitter as a failure and retry.
+      recorded: ['checked_in', 'checked_out', 'reopened'].includes(result.outcome),
+      area: { id: stamp.areaId, name: stamp.areaName, distanceMeters: stamp.distanceMeters },
+      message: messages[result.outcome] || 'Processed',
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/** The regions a device should watch. Everything needed to arm geofencing. */
+router.get('/geofence-regions', async (req, res, next) => {
+  try {
+    const areas = companyAreas(req.company)
+      .filter((area) => area.active !== false)
+      .map((area) => ({
+        identifier: area._id || area.id,
+        name: area.name || 'Work location',
+        latitude: Number(area.latitude),
+        longitude: Number(area.longitude),
+        radius: Number(area.radiusMeters || 150),
+      }))
+      .filter((area) => Number.isFinite(area.latitude) && Number.isFinite(area.longitude));
+
+    return ok(res, {
+      regions: areas,
+      operatingHours: {
+        start: req.company?.settings?.officeStart || '09:30',
+        end: req.company?.settings?.officeEnd || '18:30',
+      },
+      autoCheckInEnabled: req.company?.settings?.autoCheckIn !== false,
+      gpsTrackingEnabled: req.company?.settings?.gpsTracking !== false,
     });
   } catch (error) {
     return next(error);

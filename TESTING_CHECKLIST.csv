@@ -1,0 +1,748 @@
+Module,Page/Section,Feature/Function,Test Steps,Expected Result,Status,Tested By,Date,Notes,Priority
+ADMIN PANEL,Login,Admin Login,"1. Open admin panel
+2. Enter admin email
+3. Enter password
+4. Click Sign In",Successfully logged in and redirected to dashboard,Not Tested,,,,High
+ADMIN PANEL,Login,Invalid Login,"1. Enter wrong email
+2. Enter wrong password
+3. Click Sign In",Error message displayed: Invalid credentials,Not Tested,,,,High
+ADMIN PANEL,Login,Session Persistence,"1. Login successfully
+2. Refresh page",Should remain logged in,Not Tested,,,,Medium
+ADMIN PANEL,Login,Logout,"1. Click profile/menu
+2. Click Sign Out",Logged out and redirected to login page,Not Tested,,,,High
+ADMIN PANEL,Dashboard,View Summary,"1. Login as admin
+2. View dashboard",Shows employee count present today pending leaves active geofences,Not Tested,,,,High
+ADMIN PANEL,Dashboard,Subscription Info,View subscription section on dashboard,Shows plan name monthly cost next renewal billing cycle,Not Tested,,,,Medium
+ADMIN PANEL,Dashboard,Quick Actions,Click quick action buttons,Navigate to respective pages,Not Tested,,,,Low
+ADMIN PANEL,Employees,View Employee List,"1. Navigate to Employees
+2. View list",Shows all employees with pagination,Not Tested,,,,High
+ADMIN PANEL,Employees,Search Employee,"1. Go to Employees
+2. Enter name in search
+3. Press Enter",Shows filtered results matching search,Not Tested,,,,High
+ADMIN PANEL,Employees,Filter by Status,"1. Go to Employees
+2. Select status filter (Active/Inactive)",Shows only employees with selected status,Not Tested,,,,Medium
+ADMIN PANEL,Employees,Filter by Department,"1. Go to Employees
+2. Select department",Shows only employees in that department,Not Tested,,,,Medium
+ADMIN PANEL,Employees,Pagination,"1. Go to Employees
+2. Change rows per page (10/25/50/100)
+3. Navigate pages",Pagination works correctly,Not Tested,,,,Medium
+ADMIN PANEL,Employees,Add Employee,"1. Click Add Employee
+2. Fill all required fields
+3. Click Save",Employee created successfully,Not Tested,,,,High
+ADMIN PANEL,Employees,Edit Employee,"1. Click on employee name
+2. Edit details
+3. Save",Employee updated successfully,Not Tested,,,,High
+ADMIN PANEL,Employees,View Employee Profile,"1. Click employee name
+2. View all tabs",Shows Overview Salary Payslips Attendance Leave Assets Access tabs,Not Tested,,,,High
+ADMIN PANEL,Employees,Upload Employee Photo,"1. Open employee profile
+2. Click photo area
+3. Upload image",Photo uploaded and displayed,Not Tested,,,,Low
+ADMIN PANEL,Employees,Assign Salary Structure,"1. Open employee profile → Salary tab
+2. Click Assign Salary
+3. Fill details
+4. Save",Salary structure assigned,Not Tested,,,,High
+ADMIN PANEL,Employees,View Payslips in Profile,"1. Open employee profile → Payslips tab
+2. View list",Shows all payslips for that employee,Not Tested,,,,High
+ADMIN PANEL,Employees,View Attendance History,"1. Open employee profile → Attendance tab
+2. Select month
+3. View history",Shows monthly attendance with check-in/out times,Not Tested,,,,High
+ADMIN PANEL,Employees,View Leave History,"1. Open employee profile → Leave tab",Shows all leaves with status and balance,Not Tested,,,,Medium
+ADMIN PANEL,Employees,Deactivate Employee,"1. Open employee profile
+2. Change status to Inactive
+3. Save",Employee deactivated cannot login,Not Tested,,,,High
+ADMIN PANEL,Employees,Delete Employee,"1. Open employee
+2. Click Delete
+3. Confirm",Employee deleted from system,Not Tested,,,,High
+ADMIN PANEL,Employees,Export Employee List,"1. Go to Employees
+2. Click Export",CSV file downloaded with all employees,Not Tested,,,,Medium
+ADMIN PANEL,Employees,CSV Import,"1. Go to Employees → Import
+2. Upload CSV file
+3. Review preview
+4. Confirm import",Employees imported successfully,Not Tested,,,,High
+ADMIN PANEL,Attendance,View Daily Register,"1. Navigate to Attendance
+2. View today's attendance",Shows all employees with check-in/out status,Not Tested,,,,High
+ADMIN PANEL,Attendance,Change Date,"1. Go to Attendance
+2. Select different date",Shows attendance for selected date,Not Tested,,,,High
+ADMIN PANEL,Attendance,Filter by Geofence Area,"1. Go to Attendance
+2. Select geofence area filter",Shows only attendance from that area,Not Tested,,,,Medium
+ADMIN PANEL,Attendance,Filter by Work Location,"1. Go to Attendance
+2. Select work location filter",Shows only attendance from that location,Not Tested,,,,Medium
+ADMIN PANEL,Attendance,Filter by Status,"1. Go to Attendance
+2. Select status (Present/Absent/Late/etc)",Shows only records with that status,Not Tested,,,,Medium
+ADMIN PANEL,Attendance,Search Employee,"1. Go to Attendance
+2. Search employee name",Shows matching employee attendance,Not Tested,,,,High
+ADMIN PANEL,Attendance,View Geofence Details,"1. View daily register
+2. Check Geofence column",Shows area name and distance from center,Not Tested,,,,High
+ADMIN PANEL,Attendance,View by Location Groups,"1. Switch to Location view tab",Shows attendance grouped by work location,Not Tested,,,,Medium
+ADMIN PANEL,Attendance,Export Attendance,"1. Go to Attendance
+2. Click Export",CSV file with attendance data downloaded,Not Tested,,,,High
+ADMIN PANEL,Attendance,Manual Attendance Entry,"1. Go to Attendance
+2. Click Add/Edit Attendance
+3. Select employee date
+4. Enter check-in/out
+5. Save",Manual attendance recorded with reason,Not Tested,,,,High
+ADMIN PANEL,Leave Management,View Leave Requests,"1. Navigate to Leave Management
+2. View pending requests",Shows all pending leave requests,Not Tested,,,,High
+ADMIN PANEL,Leave Management,Approve Leave,"1. Open leave request
+2. Click Approve
+3. Confirm",Leave approved status updated,Not Tested,,,,High
+ADMIN PANEL,Leave Management,Reject Leave,"1. Open leave request
+2. Click Reject
+3. Enter reason
+4. Confirm",Leave rejected with reason,Not Tested,,,,High
+ADMIN PANEL,Leave Management,View All Leaves,"1. Go to Leave Management
+2. Switch to All Leaves tab",Shows all leaves with filters,Not Tested,,,,Medium
+ADMIN PANEL,Leave Management,Filter by Leave Type,"1. View all leaves
+2. Filter by type (Casual/Sick/Earned)",Shows only that leave type,Not Tested,,,,Medium
+ADMIN PANEL,Leave Management,Filter by Status,"1. View all leaves
+2. Filter by status",Shows leaves with selected status,Not Tested,,,,Medium
+ADMIN PANEL,Leave Management,View Leave Balance,"1. Go to Leave Management
+2. View employee leave balance",Shows remaining leaves per type,Not Tested,,,,High
+ADMIN PANEL,Leave Management,Export Leaves,"1. Go to Leave Management
+2. Click Export",CSV file with leave data downloaded,Not Tested,,,,Medium
+ADMIN PANEL,WFH Management,View WFH Requests,"1. Navigate to WFH
+2. View pending requests",Shows all pending WFH requests,Not Tested,,,,High
+ADMIN PANEL,WFH Management,Approve WFH,"1. Open WFH request
+2. Click Approve",WFH approved,Not Tested,,,,High
+ADMIN PANEL,WFH Management,Reject WFH,"1. Open WFH request
+2. Click Reject
+3. Enter reason",WFH rejected with reason,Not Tested,,,,High
+ADMIN PANEL,WFH Management,View All WFH,"1. Go to WFH
+2. View all tab",Shows all WFH records,Not Tested,,,,Medium
+ADMIN PANEL,Payroll,View Payroll Preview,"1. Navigate to Payroll → Preview
+2. Select period
+3. Click Generate Preview",Shows readiness check and preview table,Not Tested,,,,High
+ADMIN PANEL,Payroll,View Blockers,"1. Generate payroll preview
+2. Check blockers section",Shows company and employee blockers,Not Tested,,,,High
+ADMIN PANEL,Payroll,View Warnings,"1. Generate payroll preview
+2. Check warnings section",Shows warnings with fix links,Not Tested,,,,Medium
+ADMIN PANEL,Payroll,View Exceptions,"1. Generate preview
+2. Switch to Exceptions view",Shows only employees with exceptions,Not Tested,,,,High
+ADMIN PANEL,Payroll,Generate Draft Payslips,"1. Generate preview
+2. Click Approve & Generate
+3. Confirm",Draft payslips created for all employees,Not Tested,,,,High
+ADMIN PANEL,Payroll,View Payroll Register,"1. Navigate to Payroll → Register
+2. Select period",Shows all payslips for the period,Not Tested,,,,High
+ADMIN PANEL,Payroll,Filter Payslips by Status,"1. Go to Register
+2. Filter by status (Draft/Approved/Paid)",Shows payslips with selected status,Not Tested,,,,Medium
+ADMIN PANEL,Payroll,View Payslip Details,"1. Click on payslip",Shows complete breakdown of salary components,Not Tested,,,,High
+ADMIN PANEL,Payroll,Edit Draft Payslip,"1. Open draft payslip
+2. Add adjustment
+3. Save",Adjustment added recalculation done,Not Tested,,,,High
+ADMIN PANEL,Payroll,Approve Payslip,"1. Open draft payslip
+2. Click Approve",Payslip approved status changed,Not Tested,,,,High
+ADMIN PANEL,Payroll,Issue Payslip,"1. Open approved payslip
+2. Click Issue",Payslip issued to employee visible in mobile,Not Tested,,,,High
+ADMIN PANEL,Payroll,Mark as Paid,"1. Open issued payslip
+2. Click Mark as Paid
+3. Enter payment reference
+4. Enter paid date
+5. Save",Payslip marked as paid with reference,Not Tested,,,,High
+ADMIN PANEL,Payroll,Download Payslip PDF,"1. Open payslip
+2. Click Print/Download",PDF generated and downloaded,Not Tested,,,,High
+ADMIN PANEL,Payroll,Export Payroll Register,"1. Go to Register
+2. Click Export",CSV file with payroll data downloaded,Not Tested,,,,High
+ADMIN PANEL,Payroll,View Salary Structures,"1. Navigate to Payroll → Salary Structures",Shows all salary templates,Not Tested,,,,Medium
+ADMIN PANEL,Payroll,Create Salary Structure,"1. Click Add Structure
+2. Fill details
+3. Add components
+4. Save",Salary structure created,Not Tested,,,,High
+ADMIN PANEL,Payroll,Edit Salary Structure,"1. Click on structure
+2. Edit details
+3. Save",Structure updated,Not Tested,,,,Medium
+ADMIN PANEL,Payroll,Delete Salary Structure,"1. Click Delete on structure
+2. Confirm",Structure deleted if not assigned to employees,Not Tested,,,,Low
+ADMIN PANEL,Reimbursements,View Reimbursement Requests,"1. Navigate to Reimbursements",Shows all reimbursement requests,Not Tested,,,,High
+ADMIN PANEL,Reimbursements,Filter by Status,"1. Go to Reimbursements
+2. Filter by status",Shows requests with selected status,Not Tested,,,,Medium
+ADMIN PANEL,Reimbursements,View Request Details,"1. Click on reimbursement",Shows expense details attachments,Not Tested,,,,High
+ADMIN PANEL,Reimbursements,View Receipt,"1. Open reimbursement
+2. Click on attachment",Receipt image/PDF opens,Not Tested,,,,High
+ADMIN PANEL,Reimbursements,Approve Reimbursement,"1. Open pending request
+2. Enter approved amount
+3. Select payment method
+4. Click Approve",Reimbursement approved,Not Tested,,,,High
+ADMIN PANEL,Reimbursements,Reject Reimbursement,"1. Open pending request
+2. Click Reject
+3. Enter reason",Reimbursement rejected with reason,Not Tested,,,,High
+ADMIN PANEL,Reimbursements,Partial Approval,"1. Open request
+2. Enter approved amount < claimed amount
+3. Approve",Partially approved with adjusted amount,Not Tested,,,,Medium
+ADMIN PANEL,Reimbursements,Export Reimbursements,"1. Go to Reimbursements
+2. Click Export",CSV file downloaded,Not Tested,,,,Medium
+ADMIN PANEL,Grievances,View Grievances,"1. Navigate to Grievances",Shows all support tickets,Not Tested,,,,High
+ADMIN PANEL,Grievances,Filter by Category,"1. Go to Grievances
+2. Filter by category",Shows grievances of that category,Not Tested,,,,Medium
+ADMIN PANEL,Grievances,Filter by Status,"1. Go to Grievances
+2. Filter by status",Shows grievances with that status,Not Tested,,,,Medium
+ADMIN PANEL,Grievances,View Grievance Details,"1. Click on grievance",Shows full description and history,Not Tested,,,,High
+ADMIN PANEL,Grievances,Update Status,"1. Open grievance
+2. Change status
+3. Save",Status updated,Not Tested,,,,High
+ADMIN PANEL,Grievances,Add Comment,"1. Open grievance
+2. Add comment
+3. Save",Comment added visible to employee,Not Tested,,,,Medium
+ADMIN PANEL,Grievances,Resolve Grievance,"1. Open grievance
+2. Add resolution
+3. Mark as Resolved",Grievance resolved,Not Tested,,,,High
+ADMIN PANEL,Projects,View Projects,"1. Navigate to Projects",Shows all projects,Not Tested,,,,Medium
+ADMIN PANEL,Projects,Create Project,"1. Click Add Project
+2. Fill details
+3. Save",Project created,Not Tested,,,,Medium
+ADMIN PANEL,Projects,Edit Project,"1. Click on project
+2. Edit details
+3. Save",Project updated,Not Tested,,,,Medium
+ADMIN PANEL,Projects,Assign Members,"1. Open project
+2. Add members
+3. Save",Members assigned to project,Not Tested,,,,Medium
+ADMIN PANEL,Projects,Delete Project,"1. Click Delete
+2. Confirm",Project deleted,Not Tested,,,,Low
+ADMIN PANEL,Tasks,View Tasks,"1. Navigate to Tasks",Shows all tasks,Not Tested,,,,Medium
+ADMIN PANEL,Tasks,Create Task,"1. Click Add Task
+2. Fill details
+3. Assign to employee
+4. Save",Task created and assigned,Not Tested,,,,Medium
+ADMIN PANEL,Tasks,Edit Task,"1. Click on task
+2. Edit details
+3. Save",Task updated,Not Tested,,,,Medium
+ADMIN PANEL,Tasks,Change Status,"1. Open task
+2. Change status
+3. Save",Task status updated,Not Tested,,,,Medium
+ADMIN PANEL,Tasks,Delete Task,"1. Click Delete
+2. Confirm",Task deleted,Not Tested,,,,Low
+ADMIN PANEL,Assets,View Assets,"1. Navigate to Assets",Shows all company assets,Not Tested,,,,Medium
+ADMIN PANEL,Assets,Add Asset,"1. Click Add Asset
+2. Fill details
+3. Save",Asset created,Not Tested,,,,Medium
+ADMIN PANEL,Assets,Assign Asset to Employee,"1. Open asset
+2. Click Assign
+3. Select employee
+4. Save",Asset assigned status updated,Not Tested,,,,High
+ADMIN PANEL,Assets,Return Asset,"1. Open assigned asset
+2. Click Return
+3. Confirm",Asset returned status available,Not Tested,,,,High
+ADMIN PANEL,Assets,Change Asset Status,"1. Open asset
+2. Change status
+3. Save",Asset status updated,Not Tested,,,,Medium
+ADMIN PANEL,Assets,Delete Asset,"1. Click Delete
+2. Confirm",Asset deleted if not assigned,Not Tested,,,,Low
+ADMIN PANEL,Assets,Filter by Category,"1. Go to Assets
+2. Filter by category",Shows assets of that category,Not Tested,,,,Low
+ADMIN PANEL,Assets,Filter by Status,"1. Go to Assets
+2. Filter by status",Shows assets with that status,Not Tested,,,,Low
+ADMIN PANEL,Assets,Export Assets,"1. Click Export",CSV file downloaded,Not Tested,,,,Low
+ADMIN PANEL,Calendar,View Calendar,"1. Navigate to Calendar",Shows calendar with holidays and events,Not Tested,,,,Medium
+ADMIN PANEL,Calendar,Change Month,"1. Click previous/next month",Calendar updates to selected month,Not Tested,,,,Medium
+ADMIN PANEL,Calendar,View Holiday Details,"1. Click on holiday",Shows holiday details,Not Tested,,,,Low
+ADMIN PANEL,Calendar,View Event Details,"1. Click on event",Shows event details,Not Tested,,,,Low
+ADMIN PANEL,Notifications,View Notifications,"1. Click notification icon",Shows notification list,Not Tested,,,,Medium
+ADMIN PANEL,Notifications,Mark as Read,"1. Click on notification",Notification marked as read,Not Tested,,,,Low
+ADMIN PANEL,Notifications,View All Notifications,"1. Click View All",Opens notifications page,Not Tested,,,,Low
+ADMIN PANEL,Organization,View Departments,"1. Navigate to Organization → Departments",Shows all departments,Not Tested,,,,Medium
+ADMIN PANEL,Organization,Add Department,"1. Click Add Department
+2. Fill details
+3. Save",Department created,Not Tested,,,,Medium
+ADMIN PANEL,Organization,Edit Department,"1. Click on department
+2. Edit details
+3. Save",Department updated,Not Tested,,,,Medium
+ADMIN PANEL,Organization,Delete Department,"1. Click Delete
+2. Confirm",Department deleted if no employees assigned,Not Tested,,,,Low
+ADMIN PANEL,Organization,View Designations,"1. Navigate to Organization → Designations",Shows all designations,Not Tested,,,,Medium
+ADMIN PANEL,Organization,Add Designation,"1. Click Add Designation
+2. Fill details
+3. Save",Designation created,Not Tested,,,,Medium
+ADMIN PANEL,Organization,Edit Designation,"1. Click on designation
+2. Edit details
+3. Save",Designation updated,Not Tested,,,,Medium
+ADMIN PANEL,Organization,Delete Designation,"1. Click Delete
+2. Confirm",Designation deleted if not assigned,Not Tested,,,,Low
+ADMIN PANEL,Organization,View Work Locations,"1. Navigate to Organization → Work Locations",Shows all work locations,Not Tested,,,,High
+ADMIN PANEL,Organization,Add Work Location,"1. Click Add Work Location
+2. Fill name address
+3. Add GPS coordinates
+4. Set as payroll address (optional)
+5. Save",Work location created,Not Tested,,,,High
+ADMIN PANEL,Organization,Edit Work Location,"1. Click on location
+2. Edit details
+3. Save",Location updated,Not Tested,,,,High
+ADMIN PANEL,Organization,Add GPS Coordinates,"1. Edit work location
+2. Add latitude longitude
+3. Save",Geofence created automatically,Not Tested,,,,High
+ADMIN PANEL,Organization,Delete Work Location,"1. Click Delete
+2. Confirm",Location deleted if no employees assigned,Not Tested,,,,Medium
+ADMIN PANEL,Organization,View Geofences,"1. Navigate to Organization → Geofences",Shows all geofences with map preview,Not Tested,,,,High
+ADMIN PANEL,Organization,Add Geofence,"1. Click Add Geofence
+2. Select or enter details
+3. Set latitude longitude
+4. Set radius
+5. Save",Geofence created and active,Not Tested,,,,High
+ADMIN PANEL,Organization,Edit Geofence,"1. Click on geofence
+2. Edit coordinates or radius
+3. Save",Geofence updated mobile apps get new config,Not Tested,,,,High
+ADMIN PANEL,Organization,Deactivate Geofence,"1. Edit geofence
+2. Set Active to OFF
+3. Save",Geofence deactivated auto check-in stops there,Not Tested,,,,Medium
+ADMIN PANEL,Organization,Delete Geofence,"1. Click Delete
+2. Confirm",Geofence deleted,Not Tested,,,,Medium
+ADMIN PANEL,Organization,Link Geofence to Work Location,"1. Add/Edit geofence
+2. Select work location
+3. Save",Geofence linked coordinates synced,Not Tested,,,,Medium
+ADMIN PANEL,Configuration,View Company Settings,"1. Navigate to Configuration → Company",Shows company profile,Not Tested,,,,High
+ADMIN PANEL,Configuration,Edit Company Profile,"1. Edit company details
+2. Save",Company information updated,Not Tested,,,,High
+ADMIN PANEL,Configuration,Upload Company Logo,"1. Click logo area
+2. Upload image",Logo uploaded and displayed,Not Tested,,,,Low
+ADMIN PANEL,Configuration,Edit Registered Office,"1. Edit registered office address
+2. Save",Address updated appears on payslips,Not Tested,,,,High
+ADMIN PANEL,Configuration,Add Statutory Details,"1. Edit PAN TAN GSTIN
+2. Save",Statutory details updated,Not Tested,,,,High
+ADMIN PANEL,Configuration,Add PF ESI Details,"1. Edit PF ESI establishment codes
+2. Save",Details updated used in payroll,Not Tested,,,,High
+ADMIN PANEL,Configuration,View Attendance Settings,"1. Navigate to Configuration → Attendance",Shows attendance policy settings,Not Tested,,,,High
+ADMIN PANEL,Configuration,Enable Auto Check-in,"1. Toggle Auto check-in ON
+2. Save",Auto check-in enabled for all employees,Not Tested,,,,High
+ADMIN PANEL,Configuration,Disable Auto Check-in,"1. Toggle Auto check-in OFF
+2. Save",Auto check-in disabled mobile apps stop tracking,Not Tested,,,,High
+ADMIN PANEL,Configuration,Set Operating Hours,"1. Edit office start time
+2. Edit office end time
+3. Save",Operating hours updated affects auto check-in,Not Tested,,,,High
+ADMIN PANEL,Configuration,Enable GPS Tracking,"1. Toggle GPS tracking ON
+2. Save",GPS coordinates recorded on manual check-in,Not Tested,,,,Medium
+ADMIN PANEL,Configuration,Require Photo on Check-in,"1. Toggle photo required ON
+2. Save",Photo becomes mandatory on check-in,Not Tested,,,,Low
+ADMIN PANEL,Configuration,Set Late Threshold,"1. Edit late threshold minutes
+2. Save",Late calculation updated,Not Tested,,,,Medium
+ADMIN PANEL,Configuration,View Work Week Settings,"1. Navigate to Configuration → Work Week",Shows work week configuration,Not Tested,,,,High
+ADMIN PANEL,Configuration,Configure Work Week,"1. Set each day: Full/Half/Off
+2. Set occurrence patterns (1st 2nd Saturday etc)
+3. Save",Work week updated affects payroll calculations,Not Tested,,,,High
+ADMIN PANEL,Configuration,View Work Week Preview,"1. Configure work week
+2. View preview section",Shows month calendar with working days count,Not Tested,,,,High
+ADMIN PANEL,Configuration,Set Salary Day Basis,"1. Select Calendar Days or Working Days
+2. View impact preview
+3. Save",Payroll calculation basis updated,Not Tested,,,,High
+ADMIN PANEL,Configuration,View Holidays,"1. Navigate to Configuration → Holidays",Shows all holidays,Not Tested,,,,High
+ADMIN PANEL,Configuration,Add Holiday,"1. Click Add Holiday
+2. Select date
+3. Enter name
+4. Set Paid/Unpaid
+5. Save",Holiday added appears in calendar,Not Tested,,,,High
+ADMIN PANEL,Configuration,Edit Holiday,"1. Click on holiday
+2. Edit details
+3. Save",Holiday updated,Not Tested,,,,Medium
+ADMIN PANEL,Configuration,Delete Holiday,"1. Click Delete
+2. Confirm",Holiday removed,Not Tested,,,,Medium
+ADMIN PANEL,Configuration,Import Holidays (CSV),"1. Click Import
+2. Upload CSV
+3. Review
+4. Confirm",Holidays imported in bulk,Not Tested,,,,Medium
+ADMIN PANEL,Configuration,View Leave Types,"1. Navigate to Configuration → Leave Types",Shows all leave types with allowances,Not Tested,,,,High
+ADMIN PANEL,Configuration,Add Leave Type,"1. Click Add Leave Type
+2. Enter code name
+3. Set annual allowance
+4. Set paid/unpaid
+5. Save",Leave type created,Not Tested,,,,High
+ADMIN PANEL,Configuration,Edit Leave Type,"1. Click on leave type
+2. Edit details
+3. Save",Leave type updated,Not Tested,,,,Medium
+ADMIN PANEL,Configuration,Delete Leave Type,"1. Click Delete
+2. Confirm",Leave type deleted if no leaves exist,Not Tested,,,,Low
+ADMIN PANEL,Configuration,View Payroll Settings,"1. Navigate to Configuration → Payroll",Shows payroll configuration,Not Tested,,,,High
+ADMIN PANEL,Configuration,Enable PF,"1. Toggle PF ON
+2. Set employer and employee %
+3. Save",PF deduction enabled in payroll,Not Tested,,,,High
+ADMIN PANEL,Configuration,Enable ESI,"1. Toggle ESI ON
+2. Set employer and employee %
+3. Save",ESI deduction enabled in payroll,Not Tested,,,,High
+ADMIN PANEL,Configuration,Configure TDS,"1. Set TDS rules
+2. Save",TDS calculated in payroll,Not Tested,,,,High
+ADMIN PANEL,Configuration,Set Payment Day,"1. Edit payment day (1-31)
+2. Save",Payroll payment date set,Not Tested,,,,Medium
+ADMIN PANEL,Configuration,Enable LOP Deductions,"1. Toggle attendance proration ON
+2. Save",Loss of pay deductions enabled,Not Tested,,,,High
+ADMIN PANEL,Subscriptions,View Current Plan,"1. Navigate to Subscriptions",Shows current plan details,Not Tested,,,,Medium
+ADMIN PANEL,Subscriptions,View Usage,"1. View subscription page",Shows employee count and usage,Not Tested,,,,Medium
+ADMIN PANEL,Subscriptions,View Billing History,"1. Scroll to billing section",Shows past invoices,Not Tested,,,,Low
+ADMIN PANEL,Subscriptions,Download Invoice,"1. Click on invoice",PDF invoice downloaded,Not Tested,,,,Low
+ADMIN PANEL,Subscriptions,Upgrade Plan,"1. Click Upgrade
+2. Select plan
+3. Confirm",Plan upgraded (if enabled),Not Tested,,,,Low
+ADMIN PANEL,Onboarding,View Onboarding Progress,"1. Navigate to Onboarding",Shows 10-step wizard with progress,Not Tested,,,,Medium
+ADMIN PANEL,Onboarding,Complete Company Profile,"1. Fill company details
+2. Click Next",Step marked complete,Not Tested,,,,High
+ADMIN PANEL,Onboarding,Complete Payroll Identity,"1. Fill PAN TAN GSTIN
+2. Click Next",Step marked complete,Not Tested,,,,High
+ADMIN PANEL,Onboarding,Add Work Locations,"1. Add at least one location
+2. Click Next",Step marked complete,Not Tested,,,,High
+ADMIN PANEL,Onboarding,Setup Departments,"1. Add departments
+2. Click Next",Step marked complete,Not Tested,,,,Medium
+ADMIN PANEL,Onboarding,Configure Statutory,"1. Setup PF ESI
+2. Click Next",Step marked complete,Not Tested,,,,High
+ADMIN PANEL,Onboarding,Configure Attendance Policy,"1. Set work week
+2. Set operating hours
+3. Click Next",Step marked complete,Not Tested,,,,High
+ADMIN PANEL,Onboarding,Setup Leave Policy,"1. Configure leave types
+2. Click Next",Step marked complete,Not Tested,,,,High
+ADMIN PANEL,Onboarding,Add Holidays,"1. Add or import holidays
+2. Click Next",Step marked complete,Not Tested,,,,Medium
+ADMIN PANEL,Onboarding,Add Team Members,"1. Add employees
+2. Click Next",Step marked complete,Not Tested,,,,High
+ADMIN PANEL,Onboarding,Review and Go Live,"1. Review all steps
+2. Click Go Live",Onboarding completed company active,Not Tested,,,,High
+ADMIN PANEL,Desktop Activity,View Activity Logs,"1. Navigate to Desktop Activity",Shows employee desktop activity logs,Not Tested,,,,Low
+ADMIN PANEL,Desktop Activity,Filter by Employee,"1. Select employee filter",Shows activity for that employee,Not Tested,,,,Low
+ADMIN PANEL,Desktop Activity,Filter by Date Range,"1. Select date range",Shows activity for that period,Not Tested,,,,Low
+ADMIN PANEL,Desktop Activity,View Activity Details,"1. Click on activity log",Shows detailed activity breakdown,Not Tested,,,,Low
+ADMIN PANEL,Reports,Attendance Report,"1. Navigate to Reports
+2. Select Attendance Report
+3. Choose date range
+4. Generate",Shows attendance summary report,Not Tested,,,,High
+ADMIN PANEL,Reports,Leave Report,"1. Select Leave Report
+2. Choose parameters
+3. Generate",Shows leave summary report,Not Tested,,,,Medium
+ADMIN PANEL,Reports,Payroll Report,"1. Select Payroll Report
+2. Choose period
+3. Generate",Shows payroll summary report,Not Tested,,,,High
+ADMIN PANEL,Reports,Export Report,"1. Generate any report
+2. Click Export",Report downloaded as CSV or PDF,Not Tested,,,,Medium
+MOBILE APP,Login,Employee Login,"1. Open mobile app
+2. Enter Company Code
+3. Enter Employee ID
+4. Enter Passcode
+5. Click Sign In",Successfully logged in,Not Tested,,,,High
+MOBILE APP,Login,Invalid Login,"1. Enter wrong credentials
+2. Click Sign In",Error message: Invalid credentials,Not Tested,,,,High
+MOBILE APP,Login,Remember Session,"1. Login successfully
+2. Close app
+3. Reopen app",Should remain logged in,Not Tested,,,,High
+MOBILE APP,Login,Logout,"1. Go to Menu
+2. Click Sign Out",Logged out and returned to login screen,Not Tested,,,,High
+MOBILE APP,Home,View Dashboard,"1. Login successfully
+2. View home screen",Shows today's status quick actions and summary,Not Tested,,,,High
+MOBILE APP,Home,View Today's Status,"1. Check home screen top",Shows checked in/out status or ready to check in,Not Tested,,,,High
+MOBILE APP,Home,Quick Actions,"1. View quick action cards
+2. Tap any action",Navigates to respective screen,Not Tested,,,,Medium
+MOBILE APP,Home,View Metrics,"1. Scroll down on home",Shows attendance hours metrics,Not Tested,,,,Medium
+MOBILE APP,Home,Refresh Data,"1. Tap refresh icon in header",Data reloads from server,Not Tested,,,,Medium
+MOBILE APP,Attendance,View Attendance Tab,"1. Tap Attendance tab",Shows attendance screen,Not Tested,,,,High
+MOBILE APP,Attendance,View Auto Attendance Status,"1. Check attendance screen top",Shows Auto attendance active or setup needed,Not Tested,,,,High
+MOBILE APP,Attendance,Manual Check-in,"1. Tap Check In button
+2. Allow location access",Checked in successfully with GPS location,Not Tested,,,,High
+MOBILE APP,Attendance,Manual Check-out,"1. Tap Check Out button
+2. Allow location access",Checked out successfully duration calculated,Not Tested,,,,High
+MOBILE APP,Attendance,View Check-in Details,"1. After check-in
+2. View details",Shows check-in time location method,Not Tested,,,,Medium
+MOBILE APP,Attendance,Grant Location Permission,"1. Tap Enable Auto Attendance
+2. Grant when in use permission
+3. Grant Always/All the time permission",Permission granted auto attendance armed,Not Tested,,,,High
+MOBILE APP,Attendance,Auto Check-in Test,"1. With auto attendance active
+2. Enter geofenced work location
+3. Wait 30-60 seconds",Automatically checked in without opening app,Not Tested,,,,High
+MOBILE APP,Attendance,Auto Check-out Test,"1. With auto attendance active
+2. Exit geofenced work location
+3. Wait 30-60 seconds",Automatically checked out without opening app,Not Tested,,,,High
+MOBILE APP,Attendance,Offline Auto Check-in,"1. Turn on airplane mode
+2. Enter work location
+3. Turn off airplane mode after 2 min",Queued punch sent to server when online,Not Tested,,,,High
+MOBILE APP,Attendance,View Permission Status,"1. Check attendance screen",Shows permission status and instructions if denied,Not Tested,,,,Medium
+MOBILE APP,Requests,View Requests Tab,"1. Tap Requests tab",Shows leave WFH grievance and expense forms,Not Tested,,,,High
+MOBILE APP,Requests,Apply Leave,"1. Go to Requests
+2. Fill leave form
+3. Select leave type
+4. Select dates
+5. Enter reason
+6. Submit",Leave request submitted successfully,Not Tested,,,,High
+MOBILE APP,Requests,View Leave Balance,"1. Go to Requests
+2. Check leave section",Shows remaining leave balance per type,Not Tested,,,,High
+MOBILE APP,Requests,View Leave History,"1. Go to Requests
+2. Scroll to my leaves",Shows past leave requests with status,Not Tested,,,,High
+MOBILE APP,Requests,Apply WFH,"1. Go to Requests
+2. Fill WFH form
+3. Select date
+4. Enter reason
+5. Submit",WFH request submitted successfully,Not Tested,,,,High
+MOBILE APP,Requests,View WFH History,"1. Go to Requests
+2. Scroll to my WFH",Shows past WFH requests with status,Not Tested,,,,Medium
+MOBILE APP,Requests,Submit Grievance,"1. Go to Requests
+2. Fill grievance form
+3. Select category
+4. Enter details
+5. Submit",Grievance submitted with ticket number,Not Tested,,,,High
+MOBILE APP,Requests,View Grievances,"1. Go to Requests
+2. Scroll to my grievances",Shows submitted grievances with status,Not Tested,,,,Medium
+MOBILE APP,Requests,Submit Reimbursement,"1. Go to Requests
+2. Fill expense form
+3. Select category
+4. Enter amount and details
+5. Attach receipt (optional)
+6. Submit",Reimbursement submitted successfully,Not Tested,,,,High
+MOBILE APP,Requests,Upload Receipt,"1. Fill reimbursement form
+2. Tap Attach Receipt
+3. Select from gallery or camera
+4. Confirm",Receipt attached to claim,Not Tested,,,,High
+MOBILE APP,Requests,View Reimbursements,"1. Go to Requests
+2. Scroll to my reimbursements",Shows submitted reimbursements with status,Not Tested,,,,Medium
+MOBILE APP,Calendar,View Calendar Tab,"1. Tap Calendar tab",Shows month calendar with holidays and events,Not Tested,,,,Medium
+MOBILE APP,Calendar,Navigate Months,"1. Tap previous/next month arrows",Calendar changes to selected month,Not Tested,,,,Medium
+MOBILE APP,Calendar,View Today,"1. Tap Today button",Calendar jumps to current month and date,Not Tested,,,,Low
+MOBILE APP,Calendar,View Holiday Details,"1. Tap on holiday date",Shows holiday name and type,Not Tested,,,,Low
+MOBILE APP,Calendar,View Leave on Calendar,"1. Check dates with applied leaves",Shows leave markers on calendar,Not Tested,,,,Medium
+MOBILE APP,Inbox,View Notifications,"1. Tap Inbox tab",Shows notification list with unread count,Not Tested,,,,Medium
+MOBILE APP,Inbox,Mark Notification Read,"1. Tap on notification",Notification marked as read badge count decreases,Not Tested,,,,Low
+MOBILE APP,Inbox,Mark All Read,"1. Tap Mark All Read button",All notifications marked as read,Not Tested,,,,Low
+MOBILE APP,Inbox,View Notification Details,"1. Tap notification",Opens detailed view with action if applicable,Not Tested,,,,Low
+MOBILE APP,Work,View Projects,"1. Tap Work tab
+2. View projects section",Shows assigned projects,Not Tested,,,,Low
+MOBILE APP,Work,View Tasks,"1. Tap Work tab
+2. View tasks section",Shows assigned tasks with status,Not Tested,,,,Medium
+MOBILE APP,Work,Filter Tasks by Status,"1. Go to Work
+2. Select status filter",Shows tasks with that status,Not Tested,,,,Low
+MOBILE APP,Work,Update Task Status,"1. Tap on task
+2. Change status
+3. Save",Task status updated,Not Tested,,,,Medium
+MOBILE APP,Payslips,View Payslips Tab,"1. Tap Payslips tab",Shows list of issued payslips,Not Tested,,,,High
+MOBILE APP,Payslips,View Payslip Details,"1. Tap on payslip",Shows complete salary breakdown,Not Tested,,,,High
+MOBILE APP,Payslips,View Earnings,"1. Open payslip
+2. Check earnings section",Shows basic HRA DA and other earnings,Not Tested,,,,High
+MOBILE APP,Payslips,View Deductions,"1. Open payslip
+2. Check deductions section",Shows PF ESI TDS and other deductions,Not Tested,,,,High
+MOBILE APP,Payslips,View Net Salary,"1. Open payslip
+2. Check bottom",Shows net pay after all deductions,Not Tested,,,,High
+MOBILE APP,Payslips,Download Payslip PDF,"1. Open payslip
+2. Tap Download/Print",PDF generated and can be shared or saved,Not Tested,,,,High
+MOBILE APP,Payslips,Share Payslip,"1. Open payslip PDF
+2. Tap Share",Share options appear,Not Tested,,,,Medium
+MOBILE APP,Team (Manager),View Team Tab,"1. Login as manager
+2. Tap Team tab",Shows team attendance and approvals,Not Tested,,,,High
+MOBILE APP,Team (Manager),View Team Attendance,"1. Go to Team tab
+2. View attendance section",Shows today's team attendance status,Not Tested,,,,High
+MOBILE APP,Team (Manager),View Pending Leaves,"1. Go to Team tab
+2. View leave approvals",Shows pending leave requests with details,Not Tested,,,,High
+MOBILE APP,Team (Manager),Approve Leave,"1. Tap on leave request
+2. Tap Approve
+3. Confirm",Leave approved notification sent to employee,Not Tested,,,,High
+MOBILE APP,Team (Manager),Reject Leave,"1. Tap on leave request
+2. Tap Reject
+3. Enter reason
+4. Confirm",Leave rejected notification sent to employee,Not Tested,,,,High
+MOBILE APP,Team (Manager),View Pending WFH,"1. Go to Team tab
+2. View WFH approvals",Shows pending WFH requests,Not Tested,,,,Medium
+MOBILE APP,Team (Manager),Approve WFH,"1. Tap on WFH request
+2. Tap Approve",WFH approved,Not Tested,,,,Medium
+MOBILE APP,Team (Manager),Reject WFH,"1. Tap on WFH request
+2. Tap Reject
+3. Enter reason",WFH rejected,Not Tested,,,,Medium
+MOBILE APP,Team (Manager),View Team Grievances,"1. Go to Team tab
+2. View grievances section",Shows team grievances,Not Tested,,,,Low
+MOBILE APP,Team (Manager),View Reimbursement Approvals,"1. Go to Team tab
+2. View reimbursements",Shows pending reimbursements,Not Tested,,,,Medium
+MOBILE APP,Team (Manager),Approve Reimbursement,"1. Tap on reimbursement
+2. Enter approved amount
+3. Tap Approve",Reimbursement approved,Not Tested,,,,Medium
+MOBILE APP,Menu,View Menu,"1. Tap Menu tab",Shows all app sections grouped,Not Tested,,,,Medium
+MOBILE APP,Menu,Navigate from Menu,"1. Tap any menu item",Opens that section,Not Tested,,,,Low
+MOBILE APP,Menu,View Profile Info,"1. Check menu top",Shows employee name and company,Not Tested,,,,Low
+MOBILE APP,Menu,Sign Out from Menu,"1. Scroll to bottom
+2. Tap Sign Out",Logged out successfully,Not Tested,,,,High
+BACKEND API,Authentication,Login API,"POST /api/v1/auth/login
+Body: {companyCode employeeId passcode}",Returns token and employee data,Not Tested,,,,High
+BACKEND API,Authentication,Logout API,"POST /api/v1/auth/logout
+Header: Authorization token",Session invalidated,Not Tested,,,,Medium
+BACKEND API,Authentication,Token Validation,All protected endpoints with invalid token,Returns 401 Unauthorized,Not Tested,,,,High
+BACKEND API,Authentication,Refresh Token,"POST /api/v1/auth/refresh
+Header: Refresh token",Returns new access token,Not Tested,,,,Medium
+BACKEND API,Attendance,Get Today's Attendance,"GET /api/v1/attendance/today
+Header: Auth token",Returns today's attendance record,Not Tested,,,,High
+BACKEND API,Attendance,Manual Check-in,"POST /api/v1/attendance/check-in
+Body: {location method}",Creates attendance check-in record,Not Tested,,,,High
+BACKEND API,Attendance,Manual Check-out,"POST /api/v1/attendance/check-out
+Body: {location method}",Updates attendance with check-out,Not Tested,,,,High
+BACKEND API,Attendance,Get Geofence Regions,"GET /api/v1/attendance/geofence-regions
+Header: Auth token",Returns active geofences operating hours auto-enabled flag,Not Tested,,,,High
+BACKEND API,Attendance,Auto Check-in,"POST /api/v1/attendance/auto
+Body: {event regionId occurredAt location}",Creates automatic attendance record,Not Tested,,,,High
+BACKEND API,Attendance,Auto Check-out,"POST /api/v1/attendance/auto
+Body: {event:exit regionId occurredAt location}",Updates attendance with automatic check-out,Not Tested,,,,High
+BACKEND API,Attendance,Get Team Attendance,"GET /api/v1/attendance/team?date=YYYY-MM-DD
+Header: Auth token (manager/hr/admin)","Returns team attendance for date",Not Tested,,,,High
+BACKEND API,Attendance,Get Daily Register,"GET /api/v1/attendance?date=YYYY-MM-DD
+Header: Auth token (hr/admin)","Returns all attendance for date with filters",Not Tested,,,,High
+BACKEND API,Attendance,Get Employee Monthly History,"GET /api/v1/attendance/employee/{id}/history?period=YYYY-MM
+Header: Auth token",Returns monthly attendance for employee,Not Tested,,,,High
+BACKEND API,Attendance,Get My Summary,"GET /api/v1/attendance/my-summary?period=YYYY-MM
+Header: Auth token",Returns employee's own monthly summary,Not Tested,,,,Medium
+BACKEND API,Attendance,Get My Year,"GET /api/v1/attendance/my-year?year=YYYY
+Header: Auth token",Returns 12-month summary with leave usage,Not Tested,,,,Medium
+BACKEND API,Leave,Apply Leave,"POST /api/v1/leaves/apply
+Body: {leaveType startDate endDate reason}",Creates leave request,Not Tested,,,,High
+BACKEND API,Leave,Get My Leaves,"GET /api/v1/leaves/my
+Header: Auth token",Returns employee's leave requests,Not Tested,,,,High
+BACKEND API,Leave,Get Leave Types,"GET /api/v1/leaves/types
+Header: Auth token",Returns configured leave types,Not Tested,,,,High
+BACKEND API,Leave,Get Pending Approvals,"GET /api/v1/leaves/approvals/pending
+Header: Auth token (manager/hr/admin)","Returns pending leave approvals",Not Tested,,,,High
+BACKEND API,Leave,Approve Leave,"POST /api/v1/leaves/{id}/approve
+Body: {action:approve}",Approves leave request,Not Tested,,,,High
+BACKEND API,Leave,Reject Leave,"POST /api/v1/leaves/{id}/approve
+Body: {action:reject reason}","Rejects leave request",Not Tested,,,,High
+BACKEND API,Leave,Get Leave Balance,"GET /api/v1/leaves/balance
+Header: Auth token",Returns leave balance per type,Not Tested,,,,High
+BACKEND API,WFH,Request WFH,"POST /api/v1/wfh
+Body: {date reason workFromLocation}",Creates WFH request,Not Tested,,,,High
+BACKEND API,WFH,Get My WFH Requests,"GET /api/v1/wfh/my-requests
+Header: Auth token",Returns employee's WFH requests,Not Tested,,,,Medium
+BACKEND API,WFH,Get Pending WFH,"GET /api/v1/wfh/pending
+Header: Auth token (manager/hr/admin)","Returns pending WFH approvals",Not Tested,,,,Medium
+BACKEND API,WFH,Approve/Reject WFH,"PATCH /api/v1/wfh/{id}/review
+Body: {action reason}",Updates WFH request status,Not Tested,,,,Medium
+BACKEND API,Payroll,Get My Payslips,"GET /api/v1/payroll/my-payslips
+Header: Auth token",Returns employee's payslips,Not Tested,,,,High
+BACKEND API,Payroll,Get Payslip by ID,"GET /api/v1/payroll/payslips/{id}
+Header: Auth token",Returns specific payslip details,Not Tested,,,,High
+BACKEND API,Payroll,Generate Preview,"GET /api/v1/payroll/preview?period=YYYY-MM
+Header: Auth token (hr/admin)","Returns payroll preview with readiness check",Not Tested,,,,High
+BACKEND API,Payroll,Generate Payslips,"POST /api/v1/payroll/generate
+Body: {period}
+Header: Auth token (hr/admin)","Creates draft payslips for period",Not Tested,,,,High
+BACKEND API,Payroll,Get Payroll Register,"GET /api/v1/payroll/register?period=YYYY-MM
+Header: Auth token (hr/admin)","Returns all payslips for period",Not Tested,,,,High
+BACKEND API,Payroll,Update Payslip,"PATCH /api/v1/payroll/payslips/{id}
+Body: {adjustments}",Updates draft payslip with adjustments,Not Tested,,,,High
+BACKEND API,Payroll,Approve Payslip,"PATCH /api/v1/payroll/payslips/{id}/approve",Changes status to approved,Not Tested,,,,High
+BACKEND API,Payroll,Issue Payslip,"PATCH /api/v1/payroll/payslips/{id}/issue",Issues payslip to employee,Not Tested,,,,High
+BACKEND API,Payroll,Mark as Paid,"PATCH /api/v1/payroll/payslips/{id}/mark-paid
+Body: {paymentReference paidAt}",Marks payslip as paid,Not Tested,,,,High
+BACKEND API,Payroll,Print Payslip,"GET /api/v1/payroll/payslips/{id}/print",Returns HTML for PDF generation,Not Tested,,,,High
+BACKEND API,Reimbursements,Submit Reimbursement,"POST /api/v1/reimbursements
+Body: {category amount description merchant attachments}",Creates reimbursement claim,Not Tested,,,,High
+BACKEND API,Reimbursements,Upload Receipt,"POST /api/v1/reimbursements/{id}/attachments
+Body: {name mimeType dataBase64}",Adds receipt to claim,Not Tested,,,,High
+BACKEND API,Reimbursements,Get My Reimbursements,"GET /api/v1/reimbursements/my
+Header: Auth token",Returns employee's reimbursements,Not Tested,,,,High
+BACKEND API,Reimbursements,Get All Reimbursements,"GET /api/v1/reimbursements
+Header: Auth token (manager/hr/admin)","Returns all reimbursements with filters",Not Tested,,,,Medium
+BACKEND API,Reimbursements,Review Reimbursement,"PATCH /api/v1/reimbursements/{id}/review
+Body: {action approvedAmount paymentMethod}",Approves or rejects reimbursement,Not Tested,,,,High
+BACKEND API,Grievances,Submit Grievance,"POST /api/v1/grievances
+Body: {category subject description}",Creates support ticket,Not Tested,,,,High
+BACKEND API,Grievances,Get My Grievances,"GET /api/v1/grievances/my-grievances
+Header: Auth token",Returns employee's grievances,Not Tested,,,,Medium
+BACKEND API,Grievances,Get All Grievances,"GET /api/v1/grievances/all
+Header: Auth token (hr/admin)","Returns all grievances",Not Tested,,,,Medium
+BACKEND API,Grievances,Update Grievance,"PATCH /api/v1/grievances/{id}
+Body: {status assignedTo}",Updates grievance details,Not Tested,,,,Medium
+BACKEND API,Grievances,Resolve Grievance,"PATCH /api/v1/grievances/{id}/resolve
+Body: {resolution}",Marks grievance as resolved,Not Tested,,,,Medium
+BACKEND API,Employees,Get All Employees,"GET /api/v1/employees
+Header: Auth token (hr/admin)","Returns employee list with pagination",Not Tested,,,,High
+BACKEND API,Employees,Get Employee by ID,"GET /api/v1/employees/{id}
+Header: Auth token",Returns employee details,Not Tested,,,,High
+BACKEND API,Employees,Create Employee,"POST /api/v1/employees
+Body: {employee details}",Creates new employee,Not Tested,,,,High
+BACKEND API,Employees,Update Employee,"PATCH /api/v1/employees/{id}
+Body: {updated fields}",Updates employee details,Not Tested,,,,High
+BACKEND API,Employees,Delete Employee,"DELETE /api/v1/employees/{id}",Deletes employee,Not Tested,,,,Medium
+BACKEND API,Employees,Bulk Import,"POST /api/v1/employees/import
+Body: {employees: []}",Imports multiple employees,Not Tested,,,,High
+BACKEND API,Company,Get Company Settings,"GET /api/v1/company/settings
+Header: Auth token",Returns company configuration,Not Tested,,,,High
+BACKEND API,Company,Update Company Settings,"PATCH /api/v1/company/settings
+Body: {settings}",Updates company configuration,Not Tested,,,,High
+BACKEND API,Company,Get Work Locations,"GET /api/v1/company/work-locations",Returns all work locations,Not Tested,,,,High
+BACKEND API,Company,Add Work Location,"POST /api/v1/company/work-locations
+Body: {name address coordinates}",Creates work location,Not Tested,,,,High
+BACKEND API,Company,Update Work Location,"PATCH /api/v1/company/work-locations/{id}
+Body: {updated fields}",Updates work location,Not Tested,,,,High
+BACKEND API,Company,Delete Work Location,"DELETE /api/v1/company/work-locations/{id}",Deletes work location,Not Tested,,,,Medium
+BACKEND API,Geofences,Get All Geofences,"GET /api/v1/attendance-areas
+Header: Auth token",Returns all geofences,Not Tested,,,,High
+BACKEND API,Geofences,Create Geofence,"POST /api/v1/attendance-areas
+Body: {name address latitude longitude radiusMeters}",Creates geofence,Not Tested,,,,High
+BACKEND API,Geofences,Update Geofence,"PATCH /api/v1/attendance-areas/{id}
+Body: {updated fields}",Updates geofence,Not Tested,,,,High
+BACKEND API,Geofences,Delete Geofence,"DELETE /api/v1/attendance-areas/{id}",Deletes geofence,Not Tested,,,,Medium
+BACKEND API,Notifications,Get Notifications,"GET /api/v1/notifications?limit=50
+Header: Auth token",Returns user's notifications,Not Tested,,,,Medium
+BACKEND API,Notifications,Mark as Read,"PATCH /api/v1/notifications/{id}/read",Marks notification as read,Not Tested,,,,Low
+BACKEND API,Notifications,Mark All Read,"POST /api/v1/notifications/read-all",Marks all notifications as read,Not Tested,,,,Low
+BACKEND API,Projects,Get Projects,"GET /api/v1/projects
+Header: Auth token",Returns user's projects,Not Tested,,,,Low
+BACKEND API,Projects,Create Project,"POST /api/v1/projects
+Body: {project details}",Creates project,Not Tested,,,,Low
+BACKEND API,Projects,Update Project,"PATCH /api/v1/projects/{id}",Updates project,Not Tested,,,,Low
+BACKEND API,Projects,Delete Project,"DELETE /api/v1/projects/{id}",Deletes project,Not Tested,,,,Low
+BACKEND API,Tasks,Get Tasks,"GET /api/v1/tasks
+Header: Auth token",Returns user's tasks,Not Tested,,,,Medium
+BACKEND API,Tasks,Create Task,"POST /api/v1/tasks
+Body: {task details}",Creates task,Not Tested,,,,Medium
+BACKEND API,Tasks,Update Task,"PATCH /api/v1/tasks/{id}",Updates task,Not Tested,,,,Medium
+BACKEND API,Tasks,Delete Task,"DELETE /api/v1/tasks/{id}",Deletes task,Not Tested,,,,Low
+BACKEND API,Calendar,Get Calendar,"GET /api/v1/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD
+Header: Auth token",Returns events holidays for date range,Not Tested,,,,Medium
+BACKEND API,Configuration,Get Request Options,"GET /api/v1/companies/request-options
+Header: Auth token",Returns leave types reimbursement categories,Not Tested,,,,High
+BACKEND API,Configuration,Update Request Options,"PATCH /api/v1/companies/request-options
+Body: {options}
+Header: Auth token (admin)","Updates configurable options",Not Tested,,,,Medium
+INTEGRATION,Geofencing Flow,Admin Setup to Mobile,"1. Admin adds work location with GPS
+2. Admin enables auto check-in
+3. Employee logs in
+4. App fetches regions
+5. App registers geofences",Mobile app shows auto attendance active,Not Tested,,,,High
+INTEGRATION,Geofencing Flow,Auto Check-in Flow,"1. Employee enters geofence
+2. OS triggers event
+3. Background task runs
+4. POST to /attendance/auto
+5. Server creates attendance
+6. Admin sees in register",Complete automatic check-in recorded,Not Tested,,,,High
+INTEGRATION,Geofencing Flow,Offline Queue Flow,"1. Auto check-in fails (offline)
+2. Stored in local queue
+3. App comes online
+4. Queued punches sent
+5. Server accepts with original timestamp",Offline punches successfully delivered,Not Tested,,,,High
+INTEGRATION,Approval Flow,Leave Approval,"1. Employee applies leave
+2. Manager sees in Team tab
+3. Manager approves
+4. Notification sent to employee
+5. Leave balance updated
+6. Calendar shows leave",End-to-end leave workflow works,Not Tested,,,,High
+INTEGRATION,Payroll Flow,End-to-End Payroll,"1. Admin generates preview
+2. Checks readiness
+3. Generates payslips
+4. Reviews and approves
+5. Issues to employees
+6. Employee views in mobile
+7. Admin marks as paid",Complete payroll cycle works,Not Tested,,,,High
+INTEGRATION,Reimbursement Flow,Expense Claim,"1. Employee submits with receipt
+2. Manager/HR sees request
+3. Approves with amount
+4. Sets payment method
+5. Linked to payroll or separate
+6. Employee notified",End-to-end reimbursement works,Not Tested,,,,High
+SECURITY,Authentication,SQL Injection Test,Try SQL injection in login fields,Should be rejected safely,Not Tested,,,,High
+SECURITY,Authentication,XSS Test,Try JavaScript injection in text fields,Should be sanitized,Not Tested,,,,High
+SECURITY,Authorization,Access Control,Try accessing admin API with employee token,Should return 403 Forbidden,Not Tested,,,,High
+SECURITY,Authorization,Cross-Company Access,Try accessing other company's data,Should be blocked,Not Tested,,,,High
+SECURITY,Data Privacy,Employee Data Isolation,Manager views team data,Should only see own team not all employees,Not Tested,,,,High
+SECURITY,Data Privacy,Payslip Privacy,Employee tries to view others' payslips,Should be blocked,Not Tested,,,,High
+SECURITY,Session,Session Timeout,Leave logged in for extended period,Should timeout and require re-login,Not Tested,,,,Medium
+SECURITY,Session,Token Expiry,Use expired token,Should return 401 and require re-login,Not Tested,,,,High
+SECURITY,File Upload,Malicious File Upload,Try uploading executable or script,Should be rejected,Not Tested,,,,High
+SECURITY,File Upload,Large File Upload,Try uploading very large file,Should have size limit enforced,Not Tested,,,,Medium
+PERFORMANCE,Loading,Page Load Time,Load any admin page,Should load within 2-3 seconds,Not Tested,,,,Medium
+PERFORMANCE,Loading,API Response Time,Call any API endpoint,Should respond within 1 second,Not Tested,,,,Medium
+PERFORMANCE,Loading,Mobile App Launch,Open mobile app,Should launch within 2-3 seconds,Not Tested,,,,Medium
+PERFORMANCE,Pagination,Large Data Set,Load employee list with 100+ employees,Pagination should work smoothly,Not Tested,,,,Medium
+PERFORMANCE,Search,Search Performance,Search in large employee list,Should return results quickly,Not Tested,,,,Low
+PERFORMANCE,Export,Large Export,Export 100+ attendance records,Should generate and download,Not Tested,,,,Low
+USABILITY,Navigation,Breadcrumbs,Navigate deep into pages,Breadcrumbs should show path,Not Tested,,,,Low
+USABILITY,Navigation,Back Button,Use browser back button,Should work correctly,Not Tested,,,,Medium
+USABILITY,Forms,Field Validation,Submit form with invalid data,Should show clear error messages,Not Tested,,,,Medium
+USABILITY,Forms,Required Fields,Submit form missing required fields,Should highlight missing fields,Not Tested,,,,Medium
+USABILITY,Feedback,Success Messages,Complete any action successfully,Should show success message,Not Tested,,,,Low
+USABILITY,Feedback,Error Messages,Trigger any error,Should show clear error message,Not Tested,,,,Medium
+USABILITY,Feedback,Loading States,Trigger loading (save delete etc),Should show loading indicator,Not Tested,,,,Low
+USABILITY,Mobile,Responsive Design,Open admin panel on mobile browser,Should be mobile-friendly,Not Tested,,,,Medium
+USABILITY,Mobile,Touch Targets,Tap buttons on mobile,Should be easy to tap,Not Tested,,,,Low
+USABILITY,Accessibility,Keyboard Navigation,Navigate using keyboard only,Should be fully navigable,Not Tested,,,,Low
+USABILITY,Accessibility,Screen Reader,Use screen reader,Content should be accessible,Not Tested,,,,Low

@@ -6,8 +6,8 @@ import {
   Plus, RefreshCw, Reply, Save, Send, Trash2, X,
 } from 'lucide-react'
 import {
-  Badge, DataTable, Drawer, EmptyState, Field, SearchableSelect, SectionCard, TabBar, fieldClass, humanize,
-  type Option,
+  Badge, DataTable, Drawer, EmployeeProfileLink, EmptyState, Field, SearchableSelect, SectionCard, TabBar, fieldClass, humanize,
+  type EmployeeProfileTab, type Option,
 } from './ui'
 
 type WorkTab = 'board' | 'tasks' | 'projects'
@@ -188,11 +188,12 @@ function Spinner({ label }: { label: string }) {
   )
 }
 
-export default function WorkWorkspace({ apiRoot, token, role, employees, onChanged }: {
+export default function WorkWorkspace({ apiRoot, token, role, employees, onOpenEmployee, onChanged }: {
   apiRoot: string
   token: string
   role: 'manager' | 'hr' | 'admin'
   employees: WorkspaceEmployee[]
+  onOpenEmployee?: (employeeId: string, tab: EmployeeProfileTab, period?: string) => void
   onChanged: (message: string) => Promise<void> | void
 }) {
   const [tab, setTab] = useState<WorkTab>('board')
@@ -696,7 +697,7 @@ export default function WorkWorkspace({ apiRoot, token, role, employees, onChang
         <span className="block break-words font-semibold text-slate-800">{task.title}</span>
       </button>,
       task.project?.name || projects.find((project) => project._id === task.projectId)?.name || '-',
-      personName(task.assignee),
+      task.assignee?._id ? <EmployeeProfileLink key={`assignee-${task._id}`} employeeId={task.assignee._id} onOpen={onOpenEmployee}>{personName(task.assignee)}</EmployeeProfileLink> : personName(task.assignee),
       <Badge key={`priority-${task._id}`} tone={PRIORITY_TONE[task.priority] || 'neutral'}>{task.priority || 'medium'}</Badge>,
       <Badge key={`status-${task._id}`}>{task.status}</Badge>,
       formatDate(task.dueDate),
@@ -744,7 +745,7 @@ export default function WorkWorkspace({ apiRoot, token, role, employees, onChang
         <p className="font-semibold text-slate-800">{project.name}</p>
         {project.description && <p className="mt-0.5 break-words text-xs text-slate-500">{project.description}</p>}
       </div>,
-      project.lead ? personName(project.lead) : (project.leadEmployeeId ? employeeNameById.get(project.leadEmployeeId) || '-' : '-'),
+      project.lead?._id ? <EmployeeProfileLink key={`lead-${project._id}`} employeeId={project.lead._id} onOpen={onOpenEmployee}>{personName(project.lead)}</EmployeeProfileLink> : (project.leadEmployeeId ? employeeNameById.get(project.leadEmployeeId) || '-' : '-'),
       String(project.taskCounter || 0),
       <Badge key={`status-${project._id}`}>{project.status}</Badge>,
       <div key={`actions-${project._id}`} className="flex flex-wrap gap-2">

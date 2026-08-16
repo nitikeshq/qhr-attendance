@@ -2,6 +2,7 @@
 
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import PayrollPreviewCard from "./PayrollPreviewCard";
+import { EmployeeProfileLink, Modal, type EmployeeProfileTab } from "./ui";
 import {
   Check,
   ChevronLeft,
@@ -92,10 +93,13 @@ export type PayrollRecord = {
   employerContributions?: PayrollLine[];
   adjustments?: PayrollAdjustment[];
   attendanceSummary?: {
+    calendarDays?: number;
     scheduledDays: number;
     payableDays: number;
     presentDays: number;
     paidLeaveDays: number;
+    unpaidLeaveDays?: number;
+    weeklyOffDays?: number;
     lossOfPayDays: number;
   };
   statutoryDetails?: StatutoryDetail[];
@@ -359,6 +363,7 @@ type Props = {
   onInitialSalaryConsumed?: () => void;
   /** Lets a readiness blocker link straight to the page that fixes it. */
   onOpenPage?: (page: string) => void;
+  onOpenEmployee?: (employeeId: string, tab: EmployeeProfileTab, period?: string) => void;
   onChanged: (message: string) => Promise<void>;
 };
 
@@ -671,42 +676,6 @@ function PaginatedTable({
   );
 }
 
-function Overlay({
-  title,
-  close,
-  children,
-  wide = false,
-}: {
-  title: string;
-  close: () => void;
-  children: ReactNode;
-  wide?: boolean;
-}) {
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/40 p-3 sm:p-6"
-    >
-      <div
-        className={`mx-auto my-2 rounded-lg border border-slate-200 bg-white p-4 shadow-lg sm:p-6 ${wide ? "max-w-5xl" : "max-w-2xl"}`}
-      >
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <h2 className="text-xl font-bold">{title}</h2>
-          <button
-            aria-label="Close"
-            onClick={close}
-            className="neu-button rounded-lg p-2"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 export default function PayrollWorkspace({
   apiRoot,
   token,
@@ -720,6 +689,7 @@ export default function PayrollWorkspace({
   initialSalaryEmployeeId,
   onInitialSalaryConsumed,
   onOpenPage,
+  onOpenEmployee,
   onChanged,
 }: Props) {
   const [tab, setTab] = useState<
@@ -850,24 +820,45 @@ export default function PayrollWorkspace({
   async function download(payslip: PayrollRecord) {
     setBusy(`download-${payslip._id}`);
     setError("");
+    const payslipWindow = window.open(
+      "about:blank",
+      "_blank",
+      "width=1000,height=900",
+    );
     try {
+      if (!payslipWindow) {
+        throw new Error("Please allow pop-ups so the professional payslip can open");
+      }
+      payslipWindow.document.write(
+        "<!doctype html><title>Preparing payslip...</title><body style='font-family:Arial,sans-serif;padding:40px;color:#172033'>Preparing your professional payslip...</body>",
+      );
+      payslipWindow.document.close();
+
       const response = await fetch(
-        `${apiRoot}/payroll/${payslip._id}/download`,
-        { headers: { Authorization: `Bearer ${token}` } },
+        `${apiRoot}/payroll/${payslip._id}/download?printVersion=${Date.now()}`,
+        {
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Cache-Control": "no-cache",
+          },
+        },
       );
       if (!response.ok)
         throw new Error(
           (await response.json().catch(() => ({}))).message ||
-            "Could not download payslip",
+            "Could not prepare payslip",
         );
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(await response.blob());
-      link.download = `payslip-${payslip.employee.employeeId}-${payslip.period}.html`;
-      link.click();
-      URL.revokeObjectURL(link.href);
+      const html = await response.text();
+      payslipWindow.document.open();
+      payslipWindow.document.write(html);
+      payslipWindow.document.close();
+      payslipWindow.focus();
+      window.setTimeout(() => payslipWindow.print(), 500);
     } catch (reason) {
+      if (payslipWindow && !payslipWindow.closed) payslipWindow.close();
       setError(
-        reason instanceof Error ? reason.message : "Could not download payslip",
+        reason instanceof Error ? reason.message : "Could not prepare payslip",
       );
     } finally {
       setBusy("");
@@ -963,7 +954,7 @@ export default function PayrollWorkspace({
         <>
           {/* Confirm before committing. Nothing here writes, so re-checking after
               a fix is free. */}
-          <PayrollPreviewCard apiRoot={apiRoot} token={token} period={period} onOpenPage={onOpenPage} />
+          <PayrollPreviewCard apiRoot={apiRoot} token={token} period={period} onOpenPage={onOpenPage} onOpenEmployee={onOpenEmployee} />
 
           <Card>
             <div className="mb-4">
@@ -1134,9 +1125,9 @@ export default function PayrollWorkspace({
               ]}
               rows={periodPayroll.map((item) => [
                 <div key="employee">
-                  <p className="font-semibold">
-                    {item.employee.firstName} {item.employee.lastName}
-                  </p>
+                  {item.employee._id ? (
+                    <EmployeeProfileLink employeeId={item.employee._id} tab="payslips" period={period} onOpen={onOpenEmployee}>{item.employee.firstName} {item.employee.lastName}</EmployeeProfileLink>
+                  ) : <p className="font-semibold">{item.employee.firstName} {item.employee.lastName}</p>}
                   <p className="text-xs text-slate-500">
                     {item.employee.employeeId} · {item.employee.department}
                   </p>
@@ -1198,7 +1189,7 @@ export default function PayrollWorkspace({
                     )}
                   {["approved", "paid"].includes(item.status) && (
                     <button
-                      title="Download payslip"
+                      title="Print or save payslip as PDF"
                       onClick={() => void download(item)}
                       className="neu-button rounded-lg p-2"
                     >
@@ -1220,7 +1211,12 @@ export default function PayrollWorkspace({
                 <div className="mt-3 space-y-2">
                   {periodPayroll.filter((item) => item.status === "approved" && item.paymentStatus !== "paid").map((item) => (
                     <label key={item._id} className="grid items-center gap-2 rounded-lg border border-slate-200 bg-white/50 p-3 text-sm sm:grid-cols-[minmax(180px,1fr)_minmax(190px,1fr)_150px]">
-                      <span><strong>{item.employee.firstName} {item.employee.lastName}</strong><small className="block text-slate-500">{item.employee.employeeId} · {money(item.net)}</small></span>
+                      <span>
+                        {item.employee._id ? (
+                          <EmployeeProfileLink employeeId={item.employee._id} tab="payslips" period={period} onOpen={onOpenEmployee}>{item.employee.firstName} {item.employee.lastName}</EmployeeProfileLink>
+                        ) : <strong>{item.employee.firstName} {item.employee.lastName}</strong>}
+                        <small className="block text-slate-500">{item.employee.employeeId} · {money(item.net)}</small>
+                      </span>
                       <input
                         value={paymentReferences[item._id] || ""}
                         onChange={(event) => setPaymentReferences((current) => ({ ...current, [item._id]: event.target.value }))}
@@ -1323,9 +1319,9 @@ export default function PayrollWorkspace({
             ]}
             rows={salaryStructures.map((item) => [
               <div key="employee">
-                <p className="font-semibold">
-                  {item.employee.firstName} {item.employee.lastName}
-                </p>
+                {item.employee._id ? (
+                  <EmployeeProfileLink employeeId={item.employee._id} tab="salary" onOpen={onOpenEmployee}>{item.employee.firstName} {item.employee.lastName}</EmployeeProfileLink>
+                ) : <p className="font-semibold">{item.employee.firstName} {item.employee.lastName}</p>}
                 <p className="text-xs text-slate-500">
                   {item.employee.employeeId} · {item.employee.designation}
                 </p>
@@ -1405,7 +1401,9 @@ export default function PayrollWorkspace({
               labelStatus(item.action.replace("payroll.", "")),
               item.actorName,
               item.employee
-                ? `${item.employee.firstName} ${item.employee.lastName} (${item.employee.employeeId})`
+                ? (item.employee._id ? (
+                  <EmployeeProfileLink key="employee" employeeId={item.employee._id} tab="salary" onOpen={onOpenEmployee}>{item.employee.firstName} {item.employee.lastName} ({item.employee.employeeId})</EmployeeProfileLink>
+                ) : `${item.employee.firstName} ${item.employee.lastName} (${item.employee.employeeId})`)
                 : "-",
               labelStatus(item.actorRole),
             ])}
@@ -1578,6 +1576,12 @@ function PayslipModal({
   const calculationDate = payslip.generatedAt
     ? new Date(payslip.generatedAt).toLocaleString("en-IN")
     : "the original payroll run";
+  const workingDayMethod = payslip.settingsSnapshot?.workingDayMethod || "calendar_days";
+  const dayBasisLabel = workingDayMethod === "working_days"
+    ? "Configured working days"
+    : workingDayMethod === "fixed_30"
+      ? "Fixed 30 days"
+      : "Calendar days";
   async function adjustment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -1614,10 +1618,10 @@ function PayslipModal({
     );
   }
   return (
-    <Overlay
+    <Modal
       title={`${payslip.employee.firstName} ${payslip.employee.lastName} - ${payslip.period}`}
       close={close}
-      wide
+      size="wide"
     >
       <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Info
@@ -1627,14 +1631,26 @@ function PayslipModal({
         <Info label="Document ID" value={payslip.documentId || "Created on approval"} />
         <Info label="Status" value={labelStatus(payslip.status)} />
         <Info
-          label="Payable days"
+          label="Paid days / salary basis"
           value={`${payslip.attendanceSummary?.payableDays ?? "-"} / ${payslip.attendanceSummary?.scheduledDays ?? "-"}`}
         />
+        <Info label="Salary basis method" value={dayBasisLabel} />
+        <Info label="Weekly offs" value={String(payslip.attendanceSummary?.weeklyOffDays ?? 0)} />
         <Info label="Salary gross" value={money(payslip.salaryGross ?? payslip.gross)} />
         <Info label="Paid after gross" value={money(payslip.paidAfterGross ?? payslip.reimbursementTotal ?? 0)} />
         <Info label="Total earnings" value={money(payslip.totalEarnings ?? payslip.gross)} />
         <Info label="Total deductions" value={money(payslip.deductions)} />
         <Info label="Net pay" value={money(payslip.net)} />
+      </div>
+      <div className="mb-5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-800">
+        <p className="font-semibold">How the day count is calculated</p>
+        <p className="mt-1">
+          This record uses <strong>{dayBasisLabel}</strong>. {workingDayMethod === "calendar_days"
+            ? "Paid weekly offs remain part of a monthly salary, so a full July can correctly show 31 / 31 even though weekly offs are configured."
+            : workingDayMethod === "working_days"
+              ? "Weekly offs and holidays are excluded from the salary-day basis."
+              : "The salary-day basis is always 30, while weekly offs are still tracked separately."} Existing payroll records keep the settings snapshot used when they were generated.
+        </p>
       </div>
       {payslip.settingsSnapshot && (
         <div
@@ -1822,7 +1838,7 @@ function PayslipModal({
           className="neu-button flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold"
         >
           <Download className="h-4 w-4" />
-          Download payslip
+          Print / save PDF
         </button>
         {editable && (
           <button
@@ -1923,7 +1939,7 @@ function PayslipModal({
           </button>
         </form>
       )}
-    </Overlay>
+    </Modal>
   );
 }
 
@@ -2719,10 +2735,10 @@ function SalaryModal({
   }
 
   return (
-    <Overlay
+    <Modal
       title={`Salary - ${record.employee.firstName} ${record.employee.lastName}`}
       close={close}
-      wide
+      size="wide"
     >
       <form onSubmit={submit} className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -3144,7 +3160,7 @@ function SalaryModal({
           Save salary structure
         </button>
       </form>
-    </Overlay>
+    </Modal>
   );
 }
 

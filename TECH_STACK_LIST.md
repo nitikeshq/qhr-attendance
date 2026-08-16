@@ -74,7 +74,11 @@ npm run dev
   "react-native": "0.81.5",
   "react-native-web": "~0.21.0",
   "@expo/metro-runtime": "~6.1.2",
+  "@expo/vector-icons": "15.0.2",
   "expo-location": "~19.0.8",
+  "expo-task-manager": "14.0.9",
+  "expo-background-fetch": "14.0.9",
+  "@react-native-async-storage/async-storage": "2.2.0",
   "expo-document-picker": "~14.0.8",
   "expo-file-system": "~19.0.23",
   "expo-print": "~15.0.8",
@@ -137,7 +141,8 @@ npm run build:win
 ## Reusable Product Features Implemented
 
 - Multi-tenant companies, role-based access, employee lifecycle, managers, departments, and designations.
-- GPS/geofence attendance, check-in/out, leave, WFH, holidays, attendance policy, and payroll payable-day calculation.
+- **GPS/geofence attendance with automatic check-in/check-out**, background location tracking, offline punch queueing, manual check-in/out fallback, leave, WFH, holidays, attendance policy, and payroll payable-day calculation.
+- **Automatic geofencing attendance**: Background task-based geofence monitoring, OS-level location triggers, automatic punch reporting when entering/exiting work areas, offline queue with retry, server-side location validation, operating hours enforcement, and configurable per-company enable/disable.
 - Company salary templates plus employee overrides, effective-dated salary revisions, manual TDS, PF/ESI/PT/LWF/gratuity configuration, and recurring additions/deductions.
 - Independent earning formula and salary treatment: fixed / percentage formulas can be either included in gross or paid after gross; after-gross items are excluded from PF/ESI wage bases.
 - Payroll generation, draft review, one-time adjustments, approval, immutable issued payslips, publishing, payment advice, UTR reconciliation, YTD totals, and printable payslips.
